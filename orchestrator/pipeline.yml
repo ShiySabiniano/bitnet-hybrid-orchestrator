@@ -1,1 +1,170 @@
-pipeline.yml
+# orchestrator/pipeline.yml
+# Hybrid orchestration pipeline (hierarchical + parallel + sequential)
+# BitNet core reasoner + TinyBERT guard (input/output). Edge-ready defaults.
+
+version: 0.1.0
+schema: pipeline.v1
+name: summarize_and_verify
+description: >
+  Summarize an input document, check key claims in parallel against a local KB,
+  and synthesize a safe executive brief with TinyBERT guardrails.
+
+owners:
+  - Shiy Sabiniano
+
+device_profile:
+  mode: auto            # auto | phone | sbc | vps
+  # Hints the planner can use when sizing models and concurrency
+  caps:
+    cpu_threads: auto
+    memory_mb: auto
+
+budgets:
+  latency_ms: 1800      # soft end-to-end target
+  deadline_ms: 4000     # hard cutoff (scheduler may cancel leaf nodes)
+  max_concurrency: 2    # memory-aware cap (scheduler may reduce further)
+  memory_mb: 1200
+
+models:
+  reasoner: bitnet-s-1.58b      # swap to your local BitNet alias/backend
+  guard: tinybert-onnx-int8     # ONNXRuntime Mobile / CPU EP
+  embedder: mini-embed-small    # (optional) for retrieval use-cases
+  # Optional paths (fill if using local artifacts)
+  # reasoner_path: /models/bitnet/bitnet-s-1.58b.onnx
+  # guard_path: /models/tinybert/tinybert-int8.onnx
+
+storage:
+  kv_cache:
+    enabled: true
+    max_items: 64
+  rag_index:
+    enabled: false             # set true when you wire DuckDB + FAISS
+    db_path: ./data/rag.duckdb
+    vector_index: ./data/faiss.index
+
+policies:
+  thresholds:
+    toxicity_block: 0.50
+    pii_redact: 0.70
+    jailbreak_block: 0.60
+  redactions:
+    email: true
+    phone: true
+  output:
+    append_moderation_card: true
+    safe_templates:
+      fallback_enabled: true
+
+tracing:
+  enabled: true
+  redact_pii_in_traces: true
+  save_provenance: true
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Nodes (mixed patterns): parse → [claim checks…] → reduce
+# Notes:
+# - guard_pre/guard_post invoke TinyBERT on the node's input/output text.
+# - timeout_ms and max_retries are per-node controls.
+# - params are passed to the agent adapter (see orchestrator skeleton).
+# ──────────────────────────────────────────────────────────────────────────────
+nodes:
+  - id: parse
+    agent: bitnet.summarizer
+    deps: []
+    guard_pre: true
+    guard_post: true
+    timeout_ms: 900
+    max_retries: 0
+    params:
+      max_sentences: 3
+    io:
+      inputs:
+        text: ${source.text}     # the initial input text from user or file
+      outputs:
+        text: ${result.text}     # summarizer output (used by downstream nodes)
+
+  # Parallel claim checks (independent leaves)
+  - id: claim1
+    agent: bitnet.claimcheck
+    deps: [parse]
+    guard_pre: false
+    guard_post: true
+    timeout_ms: 600
+    max_retries: 1
+    params:
+      # Replace with a real extracted claim or keep as example:
+      claim: "BitNet uses 1.58-bit weights"
+      kb: []                     # empty → use default KB in agent
+    io:
+      inputs:
+        text: ${nodes.parse.text}
+      outputs:
+        text: ${result.text}
+
+  - id: claim2
+    agent: bitnet.claimcheck
+    deps: [parse]
+    guard_pre: false
+    guard_post: true
+    timeout_ms: 600
+    max_retries: 1
+    params:
+      claim: "TinyBERT is effective for classification"
+      kb: []
+    io:
+      inputs:
+        text: ${nodes.parse.text}
+      outputs:
+        text: ${result.text}
+
+  # Add more parallel checks as needed:
+  # - id: claim3 / claim4 / …
+
+  - id: reduce
+    agent: bitnet.synthesis
+    deps: [claim1, claim2]
+    guard_pre: false
+    guard_post: true
+    timeout_ms: 800
+    max_retries: 0
+    params: {}
+    io:
+      inputs:
+        text: ${nodes.parse.text}
+        pieces:
+          - ${nodes.claim1.text}
+          - ${nodes.claim2.text}
+      outputs:
+        text: ${result.text}
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Planner heuristics (optional hints)
+# ──────────────────────────────────────────────────────────────────────────────
+planner:
+  prefer_parallel_for_independent_leaves: true
+  serialize_when_memory_low: true
+  critical_path_bias: true         # prioritize nodes that shorten end-to-end latency
+  degrade_model_tiers_if_needed: true
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Error handling
+# ──────────────────────────────────────────────────────────────────────────────
+on_error:
+  strategy: partial_ok              # partial_ok | abort | best_effort
+  node:
+    blocked_pre: safe_refusal       # when guard_pre blocks
+    blocked_post: regenerate_safe   # try safer decoding/template if post-guard blocks
+  synthesis:
+    missing_inputs: skip_and_label  # mark missing leaves in final brief
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Example source binding (used by your runner; not consumed by the scheduler)
+# Provide text at runtime; this is a placeholder for local testing.
+# ──────────────────────────────────────────────────────────────────────────────
+source_example:
+  text: |
+    Contact me at test@example.com.
+    BitNet b1.58 enables efficient inference with ~1.58-bit weights.
+    Our orchestrator uses parallel branches for claim checking while TinyBERT guards input and output.
+
+# End of file
