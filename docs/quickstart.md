@@ -23,7 +23,7 @@ This guide shows you how to run the **BitNet Hybrid Orchestrator** in **Colab** 
   cd bitnet-hybrid-orchestrator
   python -m venv .venv && source .venv/bin/activate    # Windows: .\.venv\Scripts\Activate.ps1
   pip install -r orchestrator/requirements.txt
-````
+```
 
 **Optional Web UIs (local):**
 
