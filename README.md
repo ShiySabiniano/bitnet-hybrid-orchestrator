@@ -73,6 +73,8 @@ _Hierarchical + Parallel + Sequential orchestration with **BitNet** as the core 
   &nbsp;•&nbsp;
   <a href="docs/api.md"><b>🧩 Pipeline API</b></a>
   &nbsp;•&nbsp;
+  <a href="docs/chat.md"><b>💬 Chat mode</b></a>
+  &nbsp;•&nbsp;
   <a href="orchestrator/pipeline.yml"><b>🧪 Example pipeline.yml</b></a>
   &nbsp;•&nbsp;
   <a href="CHANGELOG.md"><b>📝 Changelog</b></a>
@@ -91,7 +93,7 @@ A compact orchestration engine that mixes **hierarchical**, **parallel**, and **
 - **TinyBERT Guard** enforces safety at **input**, optional **per-node gates**, and **output**—PII redaction + moderation.  
 - Designed for **on-device / edge**: phones, SBCs, lean VPS.
 
-This repo includes a **Colab demo**, a **YAML→DAG** pipeline config, and a **Docs site** (GitHub Pages).
+This repo includes a **Colab demo**, a **YAML→DAG** pipeline config, a **Docs site**, and **multi-turn chat** UI.
 
 ---
 
@@ -105,8 +107,8 @@ This repo includes a **Colab demo**, a **YAML→DAG** pipeline config, and a **D
   Hooks reserved for data curation, eval harness, fine-tuning loops.
 - **D. Section 3 MVP (Autonomous Logic) — 🟨**  
   Planning heuristics, retries/fallbacks, budget-aware routing; extend to multi-episode planning.
-- **E. Section 4 MVP (User Interface) — ⏳**  
-  CLI now; GUI/docs site; future web dashboard.
+- **E. Section 4 MVP (User Interface) — 🟨**  
+  CLI + single-turn **Web UI** + **Chat mode** (multi-turn) + docs site.
 
 ---
 
@@ -138,6 +140,9 @@ Open the notebook:
 `/notebooks/BitNet_TinyBERT_Orchestrator_Colab.ipynb`
 [▶ Launch in Colab](https://colab.research.google.com/gist/ShiySabiniano/a34e01bcfc227cddc55a6634f1823539/bitnet_tinybert_orchestrator_colab.ipynb)
 
+* **Single-turn UI:** run **Cell 6** to get a form that runs the pipeline once.
+* **Chat mode (multi-turn):** run **Cell 6B** for a chat that preserves history across turns. See **[docs/chat.md](docs/chat.md)**.
+
 ### Option 2 — Local (Python 3.10+)
 
 ```bash
@@ -162,22 +167,28 @@ python orchestrator/cli.py --input @sample.txt
 
 ---
 
-## Optional Web UI (Gradio)
+## Optional Web UIs (Gradio)
 
-To keep edge installs lean, UI deps are separate.
+We keep UI deps separate for lean edge installs.
 
 ```bash
-# install only if you want the web UI
+# Only if you want the web UIs
 pip install -r ui/requirements.txt
 ```
 
-**In Colab (recommended first run):** use the final “Cell 6/6” in **docs/colab.md** to launch a shareable Gradio UI.
-
-**Local script (optional):** copy the Gradio block from **docs/colab.md (Cell 6/6)** into `ui/gradio_demo.py`, then:
+**Single-turn UI (local):** copy the Colab **Cell 6** block into `ui/gradio_demo.py`, then:
 
 ```bash
 python ui/gradio_demo.py
-# A local URL and/or a public gradio.live link will appear
+```
+
+**Chat mode (multi-turn):**
+
+* **Colab:** run **Cell 6B — Chat Demo**.
+* **Local:** use the provided script:
+
+```bash
+python ui/chat_gradio.py
 ```
 
 ---
@@ -187,30 +198,34 @@ python ui/gradio_demo.py
 ```
 .
 ├─ docs/                         # GitHub Pages (Just-the-Docs)
-│  ├─ index.md                   # Overview
-│  ├─ quickstart.md              # How to run
-│  ├─ architecture.md            # Diagrams & flow
-│  ├─ safety.md                  # Guard thresholds & policy
-│  ├─ api.md                     # pipeline.yml schema
-│  ├─ roadmap.md                 # Phases
-│  ├─ colab.md                   # Notebook map + link
+│  ├─ index.md
+│  ├─ quickstart.md
+│  ├─ architecture.md
+│  ├─ safety.md
+│  ├─ api.md
+│  ├─ roadmap.md
+│  ├─ colab.md
+│  └─ chat.md                   # NEW: multi-turn chat guide
 │  └─ assets/
 │     ├─ logo.svg
 │     └─ diagram-overview.png
 ├─ orchestrator/
-│  ├─ pipeline.yml               # Example pipeline (YAML→DAG)
+│  ├─ pipeline.yml              # Example pipeline (YAML→DAG)
+│  ├─ pipeline.chat.yml         # NEW: chat pipeline sample
 │  ├─ requirements.txt
-│  └─ cli.py                     # Tiny CLI runner (optional)
+│  └─ cli.py                    # Tiny CLI runner
 ├─ ui/
-│  └─ requirements.txt           # gradio, nest_asyncio (optional UI deps)
+│  ├─ requirements.txt          # gradio, nest_asyncio (optional UI deps)
+│  └─ chat_gradio.py            # NEW: local chat app
 ├─ notebooks/
 │  └─ BitNet_TinyBERT_Orchestrator_Colab.ipynb
 ├─ .github/ISSUE_TEMPLATE/
 │  ├─ bug_report.md
 │  └─ feature_request.md
+├─ .github/DISCUSSION_TEMPLATE/ # NEW: category forms (announcements, q-a, ideas, show-and-tell, rfc)
 ├─ SECURITY.md • CODE_OF_CONDUCT.md • CONTRIBUTING.md
 ├─ COMPLIANCE.md • THIRD_PARTY_LICENSES.md • CHANGELOG.md
-├─ LICENSE                       # AGPL-3.0-or-later
+├─ LICENSE
 └─ README.md
 ```
 
@@ -226,7 +241,7 @@ models: { reasoner: bitnet-s-1.58b, guard: tinybert-onnx-int8 }
 policies:
   thresholds: { toxicity_block: 0.5, pii_redact: 0.7, jailbreak_block: 0.6 }
 nodes:
-  - { id: parse,  agent: bitnet.summarizer,  guard_pre: true, guard_post: true }
+  - { id: parse,  agent: bitnet.summarizer,  guard_pre: true, guard_post: true, params: { max_sentences: 3 } }
   - { id: claim1, agent: bitnet.claimcheck, deps: [parse], params: { claim: "C1" } }
   - { id: claim2, agent: bitnet.claimcheck, deps: [parse], params: { claim: "C2" } }
   - { id: reduce, agent: bitnet.synthesis,  deps: [claim1, claim2] }
@@ -290,7 +305,5 @@ If you interact with it over a network, you must provide users access to the Cor
 **Shiy Sabiniano**
 
 ```
-
-If you’re happy with this, say **“Go for it”** and I’ll update **docs/quickstart.md** to include the new **Optional Web UI (Gradio)** flow and `ui/requirements.txt` instructions without losing any of your existing content.
 ::contentReference[oaicite:0]{index=0}
 ```
