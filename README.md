@@ -1,4 +1,3 @@
-````markdown
 # BitNet Hybrid Orchestrator  
 _Hierarchical + Parallel + Sequential orchestration with **BitNet** as the core reasoner and **TinyBERT** as dual-layer safeguards (edge-ready)._
 
