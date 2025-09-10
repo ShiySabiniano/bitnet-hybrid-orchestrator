@@ -2,11 +2,50 @@
 # BitNet Hybrid Orchestrator  
 _Hierarchical + Parallel + Sequential orchestration with **BitNet** as the core reasoner and **TinyBERT** as dual-layer safeguards (edge-ready)._
 
-![License](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)
-[![Docs](https://img.shields.io/badge/Docs-GitHub%20Pages-black)](https://ShiySabiniano.github.io/bitnet-hybrid-orchestrator/)
-[![Open in Colab](https://img.shields.io/badge/Colab-Launch-orange)](https://colab.research.google.com/gist/ShiySabiniano/a34e01bcfc227cddc55a6634f1823539/bitnet_tinybert_orchestrator_colab.ipynb)
+<div align="center">
 
-> **Status:** alpha • **License:** AGPL-3.0-or-later • **Owner:** Foxes Den Corp
+<!-- Goal badge (GitHub-safe, no inline CSS) -->
+<a href="#what-is-this">
+  <img src="https://img.shields.io/badge/%F0%9F%9A%80_Goal-Innovation-ff6a00?labelColor=ee0979&logo=target&logoColor=white&style=for-the-badge" alt="Goal: Innovation">
+</a>
+
+<br/><br/>
+
+<!-- Row 1: Badges -->
+<a href="https://colab.research.google.com/gist/ShiySabiniano/a34e01bcfc227cddc55a6634f1823539/bitnet_tinybert_orchestrator_colab.ipynb">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Run in Colab" height="28">
+</a>
+&nbsp;
+<a href="https://ShiySabiniano.github.io/bitnet-hybrid-orchestrator/">
+  <img src="https://img.shields.io/badge/Docs-GitHub%20Pages-black?logo=readthedocs" alt="Docs" height="28">
+</a>
+&nbsp;
+<a href="https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/actions">
+  <img src="https://img.shields.io/badge/CI-GitHub%20Actions-blue?logo=githubactions" alt="CI" height="28">
+</a>
+&nbsp;
+<a href="LICENSE">
+  <img src="https://img.shields.io/badge/License-AGPL--3.0--or--later-2ea44f?logo=gnu" alt="License" height="28">
+</a>
+&nbsp;
+<a href="https://img.shields.io/badge/status-alpha-orange">
+  <img src="https://img.shields.io/badge/status-alpha-orange" alt="Status" height="28">
+</a>
+
+<br/><br/>
+
+<!-- Row 2: Quick links -->
+<a href="https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator"><b>🏠 Repo</b></a>
+&nbsp;•&nbsp;
+<a href="https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/issues"><b>🐞 Issues</b></a>
+&nbsp;•&nbsp;
+<a href="https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/discussions"><b>💬 Discussions</b></a>
+&nbsp;•&nbsp;
+<a href="https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/releases"><b>📦 Releases</b></a>
+
+</div>
+
+> **Status:** alpha • **License:** AGPL-3.0-or-later • **Owner:** **Shiy Sabiniano**
 
 ---
 
