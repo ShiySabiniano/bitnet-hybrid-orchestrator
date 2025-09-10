@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Ask a question (Discussions)
+    url: https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/discussions/new
+    about: For “how do I…?” questions and troubleshooting.
+  - name: 💡 Share an idea (Discussions)
+    url: https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/discussions/new
+    about: Propose enhancements before opening a feature request.
+  - name: 🔐 Security (private)
+    url: https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/security/advisories/new
+    about: Report vulnerabilities privately (see SECURITY.md).
