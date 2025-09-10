@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ee0979"/>
+      <stop offset="100%" stop-color="#ff6a00"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1E90FF"/>
+      <stop offset="100%" stop-color="#6EE7B7"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- Background circle (subtle ring) -->
+  <circle cx="128" cy="128" r="118" fill="none" stroke="url(#g2)" stroke-width="6" opacity="0.35"/>
+
+  <!-- DAG nodes (hierarchical + parallel + sequential) -->
+  <!-- Top node -->
+  <circle cx="128" cy="76" r="18" fill="url(#g1)" filter="url(#softShadow)"/>
+  <!-- Bottom left & right nodes -->
+  <circle cx="84" cy="150" r="16" fill="url(#g1)" filter="url(#softShadow)"/>
+  <circle cx="172" cy="150" r="16" fill="url(#g1)" filter="url(#softShadow)"/>
+  <!-- Reducer node -->
+  <circle cx="128" cy="196" r="14" fill="url(#g1)" filter="url(#softShadow)"/>
+
+  <!-- Edges -->
+  <path d="M128,94 L128,134" stroke="#111827" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
+  <path d="M118,134 L92,146" stroke="#111827" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
+  <path d="M138,134 L164,146" stroke="#111827" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
+  <path d="M100,166 L118,184" stroke="#111827" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
+  <path d="M156,166 L138,184" stroke="#111827" stroke-width="6" stroke-linecap="round" opacity="0.85"/>
+
+  <!-- Shield (safety / TinyBERT guard) -->
+  <g transform="translate(186,26)" filter="url(#softShadow)">
+    <path d="M32 4 L52 12 C52 34 44 50 32 58 C20 50 12 34 12 12 Z" fill="#111827"/>
+    <path d="M28 38 l-6 -6 a4 4 0 0 1 5.6 -5.6 l3.4 3.4 10.6 -10.6 a4 4 0 1 1 5.6 5.6 L31 38 a4 4 0 0 1 -3 1 z"
+          fill="url(#g2)"/>
+  </g>
+
+  <!-- Small caption (hidden at favicon sizes, helpful at larger) -->
+  <g aria-label="BitNet Orchestrator" opacity="0.9">
+    <text x="128" y="242" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif"
+          font-size="16" fill="#111827">BitNet Hybrid Orchestrator</text>
+  </g>
+</svg>
