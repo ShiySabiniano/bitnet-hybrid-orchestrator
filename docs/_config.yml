@@ -1,71 +1,63 @@
 # docs/_config.yml
-# GitHub Pages config for the docs site (Just the Docs)
+# Site config for GitHub Pages using the Just-the-Docs theme.
 
 title: BitNet Hybrid Orchestrator
-description: >
-  Hybrid orchestration for edge devices: hierarchical + parallel + sequential
-  with BitNet as the reasoner and TinyBERT safeguards.
+description: Hybrid orchestration (hierarchical + parallel + sequential) with BitNet as the core reasoner and TinyBERT guard — edge-ready.
 
-# Theme
+# --- GitHub Pages / routing ---
+url: "https://ShiySabiniano.github.io"
+baseurl: "/bitnet-hybrid-orchestrator"   # repo name for project pages
+permalink: pretty
+repository: "ShiySabiniano/bitnet-hybrid-orchestrator"
+
+# --- Theme ---
 remote_theme: just-the-docs/just-the-docs
 color_scheme: dark
 logo: /assets/logo.svg
-favicon_ico: /assets/logo.svg
-
-# Site URL (helps canonical links). Replace if you fork.
-url: https://ShiySabiniano.github.io
-baseurl: /bitnet-hybrid-orchestrator
-
-# Navigation & UX
-permalink: pretty
 search_enabled: true
 heading_anchors: true
 enable_copy_code_button: true
-nav_external_links:
-  - title: Repo
-    url: https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator
-    hide_icon: false
+back_to_top: true
+back_to_top_text: "Back to top"
 
-# Mermaid support (for diagrams in docs)
-mermaid: true
-
-# “Edit this page” links
-gh_edit_link: true
-gh_edit_link_text: "Edit this page on GitHub"
-gh_edit_repository: "https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator"
-gh_edit_branch: "main"
-gh_edit_source: "docs"
-gh_edit_view_mode: "edit"
-
-# Footer links (right side, open in new tab)
+# --- Top-right links ---
 aux_links:
-  Colab Demo: https://colab.research.google.com/gist/ShiySabiniano/a34e01bcfc227cddc55a6634f1823539/bitnet_tinybert_orchestrator_colab.ipynb
-  GitHub Repo: https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator
-  Security Policy: https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/blob/main/SECURITY.md
-  Report Vulnerability: https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/security/advisories/new
-  PGP Public Key: https://raw.githubusercontent.com/ShiySabiniano/bitnet-hybrid-orchestrator/main/security/pgp/ShiySabiniano.asc
+  "GitHub Repo": "https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator"
+  "Open in Colab": "https://colab.research.google.com/gist/ShiySabiniano/a34e01bcfc227cddc55a6634f1823539/bitnet_tinybert_orchestrator_colab.ipynb"
 aux_links_new_tab: true
 
-# Footer text (left side)
+# --- Footer (AGPL §13 hint: expose commit) ---
 footer_content: >
-  © 2025 Shiy Sabiniano · Licensed AGPL-3.0-or-later ·
-  For network-hosted instances, expose the running commit per AGPL §13 (see COMPLIANCE.md).
+  Source: <a href="https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/tree/{{ site.github.build_revision | default: 'HEAD' }}">commit</a>
+  &nbsp;•&nbsp; License: <a href="https://www.gnu.org/licenses/agpl-3.0.html">AGPL-3.0-or-later</a>
+  &nbsp;•&nbsp; Owner: Shiy Sabiniano
 
-# Optional callout styles (use :::note / :::warning in pages)
-callouts:
-  note:
-    title: Note
-    color: blue
-  tip:
-    title: Tip
-    color: green
-  warning:
-    title: Warning
-    color: yellow
-  danger:
-    title: Important
-    color: red
+# --- Mermaid diagrams (works with Just-the-Docs on GitHub Pages) ---
+mermaid:
+  enabled: true
 
-# Plugins allowed on GitHub Pages
+# --- Plugins allowed by GitHub Pages ---
 plugins:
   - jekyll-seo-tag
+  - jekyll-github-metadata
+
+# --- Exclusions (keep site lean) ---
+exclude:
+  - "notebooks/"
+  - ".github/"
+  - ".venv/"
+  - "ui/__pycache__/"
+  - "orchestrator/__pycache__/"
+
+# --- Markdown / kramdown defaults ---
+kramdown:
+  input: GFM
+  hard_wrap: false
+
+# --- Defaults for pages (optional ordering is set via front matter on each page) ---
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
