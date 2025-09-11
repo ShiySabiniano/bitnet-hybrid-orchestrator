@@ -1,140 +1,168 @@
-# Security Policy
+# SECURITY.md
 
-Thank you for helping keep **BitNet Hybrid Orchestrator** and its users safe.  
-This document explains how to report vulnerabilities and what to expect.
+**Project:** BitNet Hybrid Orchestrator  
+**Owner:** **Shiy Sabiniano**  
+**License:** AGPL-3.0-or-later
 
----
-
-## 📣 Reporting a Vulnerability
-
-**Please do not create public issues for security problems.**
-
-Use one of the private channels below:
-
-1. **GitHub Security Advisory (preferred)**  
-   Go to the repo → **Security** tab → **Report a vulnerability**.  
-   This creates a private discussion visible only to maintainers.
-
-2. **Email (optional fallback)**  
-   If you cannot use GitHub, email the maintainers at **\<your-security-email@domain\>** with the subject `SECURITY: <short description>`.  
-   *(Replace the placeholder with your preferred address before publishing.)*
-
-If you need to encrypt your message, include your **PGP public key** here once available.
-
----
-
-## 🔒 What to Include
-
-Please provide as much of the following as possible:
-
-- Affected version/commit (`git rev-parse HEAD`) and environment (OS, Python, runtime)
-- Vulnerability type (RCE, privilege escalation, info disclosure, logic bug, etc.)
-- Minimal reproducible steps / PoC (commands, payloads, configs)
-- Expected vs. actual behavior
-- Impact assessment (who/what can be affected)
-- Any temporary mitigations or workarounds
-
-> **Never include secrets, live PII, or access tokens** in your report. If demonstrating PII exposure, use synthetic data.
-
----
-
-## 🔄 Coordinated Disclosure
-
-We follow a responsible disclosure process:
-
-- **Acknowledgement:** within **72 hours**
-- **Triage / initial assessment:** within **7 days**
-- **Fix window (targets, best-effort):**
-  - Critical: aim for **30 days**
-  - High: **60–90 days**
-  - Medium: **90–180 days**
-  - Low/Informational: scheduled as appropriate
-
-We may request additional time for complex fixes or dependency chains. Once a fix is available, we will publish release notes and (if applicable) a GitHub Security Advisory with credit to the reporter (opt-in).
-
----
-
-## 🧭 Scope & Out-of-Scope
-
-**In scope**
-- Vulnerabilities in this repository’s source code, configurations, and published artifacts
-- Supply-chain issues specific to how this project consumes dependencies
-- Leaks or bypasses related to the **TinyBERT Guard** (PII, jailbreak, policy evasion)
-- Orchestrator DAG execution / sandbox escape / unsafe tool invocation
-
-**Out of scope**
-- Third-party libraries **not** maintained in this repo (report those upstream)
-- Social engineering, physical attacks, stolen devices
-- Denial-of-Service (volumetric, fuzzing at scale), spam, or rate-limit abuses
-- Best-practice suggestions without a demonstrable security impact
-- Vulnerabilities that require root/admin on the target host to exploit
-
----
-
-## 🧪 Testing Guidelines (Safe Harbor)
-
-We encourage good-faith research following these rules:
-
-- Do not access, modify, or exfiltrate data that does not belong to you.
-- Do not degrade service for others (no volumetric DoS, no automated scanning of hosted demos).
-- Only test against instances you control. If you discover a vulnerability in someone else’s deployment, inform them and us privately.
-- Respect rate limits and applicable laws (CFAA, local regulations).
-- If you encounter sensitive data inadvertently, **stop**, **do not** store it, and report immediately.
-
-We will not pursue legal action against researchers who abide by this policy and act in good faith.
-
----
-
-## 🔐 AGPL §13 (Network Use) Note
-
-If you host a modified version of this software over a network, **AGPLv3** requires providing users with access to the **Corresponding Source** for your running version. See `COMPLIANCE.md` for:
-- a `/source` endpoint example,
-- the `X-AGPL-Source` header, and
-- Docker labels to advertise the exact commit.
-
----
-
-## 🧱 Supported Versions
-
-We generally patch:
-- **`main`** branch, and
-- the **latest tagged release**.
-
-Older releases may receive fixes at our discretion if the patch is low-risk or widely impactful.
-
----
-
-## 🧮 Severity & Scoring
-
-We classify issues using **CVSS v3.1** (Base score) and practical impact in typical deployments (edge devices, SBCs, lean VPS). If appropriate, we will request a **GHSA** and/or **CVE** during advisory publication.
-
----
-
-## 🔗 Dependency Security
-
-We use Dependabot (or equivalent) to surface upstream issues. If your report concerns a third-party package, please include links to upstream advisories or commits when possible.
-
----
-
-## 🙏 Recognition
-
-With your consent, we’ll credit you in the advisory and release notes (name, handle, or “anonymous”). We do not currently run a bounty program.
+This document explains how to report security issues and how we coordinate fixes and disclosure.
 
 ---
 
 ## 📬 Contact Summary
 
-- **Report via GitHub (preferred):** Security → *Report a vulnerability*  
-- **Email (fallback):** [Troubleshooting@sabiniano.me](mailto:Troubleshooting@sabiniano.me)
+- **Report privately (preferred):** GitHub → **Security** → **Report a vulnerability**  
+  <https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/security/advisories/new>
+- **Email (fallback):** **Troubleshooting@sabiniano.me**  
+- **PGP public key:** [`security/pgp/ShiySabiniano.asc`](security/pgp/ShiySabiniano.asc)
 
-## 🔐 PGP
+### 🔐 PGP
 
-**Maintainer:** Shiy Sabiniano  
-**Email:** Troubleshooting@sabiniano.me  
-**Key ID (long):** 0x330C258F91939D41  
-**Fingerprint:** C445 E530 2004 1B8A 7784 286A 330C 258F 9193 9D41  
-**Algo:** Ed25519 (sign) + Curve25519 (encrypt)  
-**Created:** 2025-09-10 • **Expires:** 2027-09-10  
-**Public key (.asc):** [/security/pgp/ShiySabiniano.asc](./security/pgp/ShiySabiniano.asc)
+- **Maintainer:** Shiy Sabiniano  
+- **Email:** Troubleshooting@sabiniano.me  
+- **Key ID (long):** `0x330C258F91939D41`  
+- **Fingerprint:** `C445 E530 2004 1B8A 7784 286A 330C 258F 9193 9D41`  
+- **Algorithms:** Ed25519 (sign) + Curve25519 (encrypt)  
+- **Public key (.asc):** [`security/pgp/ShiySabiniano.asc`](security/pgp/ShiySabiniano.asc)
 
-Thank you for helping to keep **BitNet Hybrid Orchestrator** safe for everyone.
+**Verify & import**
+```bash
+gpg --show-keys --with-fingerprint security/pgp/ShiySabiniano.asc
+# Confirm the fingerprint matches exactly (spaces optional).
+
+gpg --import security/pgp/ShiySabiniano.asc
+````
+
+**Encrypt a report (optional but recommended)**
+
+```bash
+# Prepare your report (include details below).
+gpg --encrypt --armor -r Troubleshooting@sabiniano.me report.txt
+# Email the resulting ASCII file.
+```
+
+---
+
+## 🧭 What to include in a report
+
+Please provide as much of the following as possible:
+
+* A clear **overview** and **impact** (why this matters).
+* **Affected version/commit** (link the exact commit or tag).
+* **Steps to reproduce** (minimal PoC preferred).
+* Expected vs actual behavior.
+* Any **logs/stack traces** (scrub secrets/PII).
+* Suggested **mitigations** (if known).
+* Your **disclosure preference** (credit or anonymous).
+
+> ⚠️ Do **not** include real personal data or credentials. Use synthetic examples—the project ships with PII redaction features, but treat reports as if they will be shared among maintainers.
+
+---
+
+## 🎯 Scope
+
+**In scope**
+
+* Code and configurations in this repository.
+* The published documentation site (GitHub Pages for this repo).
+* Demo UIs (Colab/Gradio) and the orchestrator flow as implemented here.
+
+**Out of scope**
+
+* Vulnerabilities exclusively in **third-party dependencies** without a demonstrable exploit path via this project.
+* **Social engineering**, **physical attacks**, or **DDoS** / volumetric resource exhaustion.
+* Automated scans causing service degradation on shared demo endpoints.
+* License/compliance questions (see **COMPLIANCE.md**); these are important but not security bugs.
+
+---
+
+## 🤝 Coordinated disclosure policy
+
+We follow responsible, time-boxed disclosure with collaborative timelines.
+
+**Acknowledgment**
+We aim to acknowledge your report **within 48 hours**.
+
+**Triage & assessment**
+Severity determined using CVSS 3.x/4.0 as guidance.
+
+**Target timelines** (negotiable based on complexity):
+
+* **Critical/High:** fix or viable mitigation within **14–30 days**.
+* **Medium:** **30–60 days**.
+* **Low/Informational:** **60–90 days**.
+
+**Public disclosure**
+We coordinate a disclosure date once a patch/mitigation is available. If a fix is delayed, we’ll provide status updates and may agree on a partial disclosure.
+
+**Credit**
+We will credit researchers in **CHANGELOG.md** and/or the advisory unless you request anonymity.
+
+> We currently do **not** run a paid bug bounty. Thoughtful reports are still highly appreciated, and we’re happy to acknowledge your contribution.
+
+---
+
+## 🛡️ Safe-harbor statement
+
+If you make a **good-faith** effort to follow this policy:
+
+* We will **not pursue legal action** against you for security research.
+* Exclusions: data exfiltration, privacy violations, permanent service impact, extortion, or breach of applicable laws.
+* Stop testing and report immediately if you encounter **user data**, credentials, or PII.
+
+---
+
+## 🔒 Handling sensitive data
+
+* Prefer **sanitized** inputs and outputs in your PoC.
+* If you must share sensitive details, **encrypt** via the maintainer PGP key.
+* We avoid storing raw prompts/outputs; demo UIs are ephemeral. If logs are necessary, store **redacted** content only.
+
+---
+
+## 🧪 Patch, release, and advisory
+
+* Fixes land on `main` with tests where applicable.
+* A security **advisory** summarizes impact, affected versions/commits, and upgrade/migration steps.
+* The **CHANGELOG** will reference the advisory and acknowledge reporters (if desired).
+
+---
+
+## 🧾 Compliance notes (AGPL §13)
+
+If you deploy this project over a network (even privately), the AGPL requires exposing the **Corresponding Source** for the running commit. We provide **COMPLIANCE.md** with:
+
+* HTTP header: `X-AGPL-Source: https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/tree/<COMMIT_SHA>`
+* `/source` endpoint & UI footer snippets
+
+Security issues stemming solely from missing AGPL headers/links are **compliance** matters; please open a (private) advisory or issue accordingly.
+
+See: **[COMPLIANCE.md](COMPLIANCE.md)**
+
+---
+
+## 🔁 Key rotation & verification
+
+If the maintainer key rotates or expires:
+
+* A new `.asc` will be added under `security/pgp/` and the old key will be kept until its expiration (with a revocation certificate if applicable).
+* **SECURITY.md** will be updated with the new fingerprint.
+* Verify keys with:
+
+  ```bash
+  gpg --show-keys --with-fingerprint security/pgp/ShiySabiniano.asc
+  ```
+
+---
+
+## 📎 Templates & references
+
+* Private advisories: [https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/security/advisories/new](https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/security/advisories/new)
+* PGP key: [`security/pgp/ShiySabiniano.asc`](security/pgp/ShiySabiniano.asc)
+* CHANGELOG: [`CHANGELOG.md`](CHANGELOG.md)
+* Compliance: [`COMPLIANCE.md`](COMPLIANCE.md)
+
+Thank you for helping keep **BitNet Hybrid Orchestrator** safe for everyone!
+
+```
+::contentReference[oaicite:0]{index=0}
+```
