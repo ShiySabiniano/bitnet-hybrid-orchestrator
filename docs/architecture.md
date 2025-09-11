@@ -12,15 +12,16 @@ This document explains how the **BitNet Hybrid Orchestrator** is put together: t
 
 ```mermaid
 flowchart TD
-A[User Input] --> G1[ TinyBERT Guard • input ]
-G1 -->|redacted text| O[Orchestrator (Scheduler)]
-O --> P[Parse/Intent (summarizer)]
-P --> C1[Claim Check 1]
-P --> C2[Claim Check 2]
-C1 --> R[Reduce/Synthesis]
-C2 --> R
-R --> G2[ TinyBERT Guard • output ]
-G2 --> X[Response]
+  A["User Input"] --> G1["TinyBERT Guard (input)"]
+  G1 -->|redacted text| O["Orchestrator (Scheduler)"]
+  O --> P["Parse / Intent (summarizer)"]
+  P --> C1["Claim Check 1"]
+  P --> C2["Claim Check 2"]
+  C1 --> R["Reduce / Synthesis"]
+  C2 --> R
+  R --> G2["TinyBERT Guard (output)"]
+  G2 --> X["Response"]
+
 ````
 
 * The **Orchestrator** executes a DAG of **Nodes**. Parents feed their outputs into children (shallow merge).
