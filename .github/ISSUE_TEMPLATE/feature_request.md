@@ -1,104 +1,136 @@
 ---
-name: Feature request
-about: Propose an enhancement for BitNet Hybrid Orchestrator
-title: "[feat] <short summary>"
-labels: enhancement
-assignees: ""
+name: "✨ Feature request"
+about: "Propose an enhancement or new capability for BitNet Hybrid Orchestrator"
+title: "Feat: <short summary>"
+labels: ["enhancement", "design-needed"]
+assignees: []
 ---
 
 <!--
-Please check existing issues first. For security-sensitive ideas (e.g., new tool exec, network access),
-do NOT file publicly—see SECURITY.md.
+💬 For open-ended ideation or questions, please start in Discussions:
+https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/discussions
+Then file this request once there's a concrete proposal.
 
-Be as specific as possible; small, focused requests ship faster.
+🔐 Do NOT disclose security-sensitive details here. Use SECURITY.md instead.
 -->
 
-## Summary
-A clear, concise description of the feature and the problem it solves.
+## Summary / User story
+*A concise description and who benefits.*
+> As a <role>, I want <capability> so that <outcome>.
 
-## Motivation / Use Case
-- Who benefits (operator, developer, end user)?
-- What is painful today?
-- Why is this important on **edge** devices?
+## Motivation / Problem
+*Why is this needed? What’s the limitation today? Provide real use cases.*
 
-## Proposal
-Describe the solution at a high level. Include diagrams or pseudo-code if helpful.
+## Proposed solution
+*High-level approach. Include diagrams or links if helpful.*
 
-### API / Schema Changes (if any)
-- Orchestrator public API:
-- New/changed agents:
-- `orchestrator/pipeline.yml` schema deltas:
-  ```yaml
-  # example
-  nodes:
-    - id: new_node
-      agent: tools.retriever
-      deps: [parse]
-      guard_pre: true
-      params: { k: 4 }
-````
+- Approach A: …
+- Approach B: …
 
-### UX / CLI (if any)
+## Why now?
+*Priority, impact, or deadlines (if any).*
 
-New commands, flags, or configuration. Example usage:
-
-```bash
-orchestrator run --pipeline orchestrator/pipeline.yml --input file.txt
-```
-
-## Alternatives Considered
-
-* Option A:
-* Option B:
-* Why the proposal is preferable:
+---
 
 ## Scope
+- [ ] In-scope item 1
+- [ ] In-scope item 2
 
-* **In scope:** …
-* **Out of scope:** …
+**Out of scope**
+- Not included: …
 
-## Risks & Mitigations
+## API / Schema changes (if any)
+*Describe changes to `orchestrator/pipeline*.yml` (new nodes, params, policies, conversation fields).*
 
-| Risk                  | Impact | Likelihood | Mitigation                                      |
-| --------------------- | ------ | ---------- | ----------------------------------------------- |
-| Threshold regressions | Medium | Medium     | Add guard eval set to CI                        |
-| Memory use on SBCs    | High   | Medium     | Serialize under pressure; cap `max_concurrency` |
+```yaml
+# example
+version: 0.1.0
+schema: pipeline.v1
+nodes:
+  - id: <new-node>
+    agent: my.agent
+    deps: [parse]
+    params: { ... }
+````
 
-## Security / Safety / Privacy
+*Runtime interfaces (keep agent contract: `async def agent(**kwargs) -> dict`):*
 
-* Guard implications (PII redaction, jailbreak/toxicity thresholds):
-* Per-node `guard_pre/guard_post` needed?
-* Any new external calls / tool exec?
-* Telemetry/logging changes (ensure `tracing.redact_pii_in_traces: true`)
+```python
+async def my_agent(**kwargs) -> dict:
+    # returns at least {"text": "..."}
+    ...
+```
 
-## Performance / Resource Targets
+## UI / UX (if applicable)
 
-* Expected latency impact (p50/p95):
-* Memory footprint (MB):
-* Concurrency considerations:
+*Changes for the Gradio single-turn UI or Chat mode.*
 
-## Compatibility
+* Controls / inputs:
+* Outputs / formatting:
+* Accessibility / i18n:
 
-* Backward compatible?
-* Migration steps (docs needed? deprecation period?):
+## Backward compatibility
 
-## Dependencies & Licensing
+* [ ] No breaking changes expected
+* [ ] Requires migration notes (describe)
 
-* New packages or model weights?
-* Add entries to `THIRD_PARTY_LICENSES.md` with license and source URL.
-* AGPL considerations for network-served use (see `COMPLIANCE.md`).
+## Security & Safety
 
-## Acceptance Criteria
+* Guard interaction (pre/post): thresholds, new labels, PII handling.
+* Data paths / logs: ensure **redacted** text only if stored.
+* Threat model notes (if executing tools, retrieval, external calls).
 
-* [ ] Feature flag or config toggle (default safe)
-* [ ] Unit tests / golden tests
-* [ ] Docs updated (`docs/*` and README Quick Links if applicable)
-* [ ] Example in Colab or a minimal script
-* [ ] CI passes
+## Compliance
 
-## Additional Context
+If this will be **hosted**:
 
-Links to prior discussions, benchmarks, mockups, related issues/PRs, or external references.
+* [ ] Add/keep **Source** link to the running commit in UI
+* [ ] Return `X-AGPL-Source` header or `/source` endpoint
+  (See **COMPLIANCE.md**. Do not paste secrets/keys here.)
+
+## Dependencies
+
+*Libraries, model weights, datasets (with licenses).*
+
+* Libs:
+* Models:
+* Data:
+
+## Risks / Open questions
+
+* Risk 1:
+* Open Q:
+
+## Alternatives considered
+
+* Option 1:
+* Option 2:
+
+## Metrics / Success criteria
+
+*How we’ll know this worked; include perf/latency/quality targets.*
+
+* KPI 1:
+* KPI 2:
+
+## Testing plan
+
+* Unit tests:
+* Orchestrator integration (mock agents):
+* Colab manual steps (cells to run):
+* Edge cases:
+
+## Documentation updates
+
+* [ ] README
+* [ ] docs/api.md
+* [ ] docs/architecture.md
+* [ ] docs/quickstart.md / docs/colab.md / docs/chat.md
+* [ ] CHANGELOG.md
+
+## Additional context / References
+
+*Links to prior discussions, PRs, related issues, papers, designs.*
 
 ```
 ::contentReference[oaicite:0]{index=0}
