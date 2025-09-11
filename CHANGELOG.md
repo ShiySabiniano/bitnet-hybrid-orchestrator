@@ -1,59 +1,75 @@
 # Changelog
-All notable changes to this project will be documented in this file.
+All notable changes to **BitNet Hybrid Orchestrator** will be documented in this file.
 
-The format is based on **[Keep a Changelog](https://keepachangelog.com/en/1.0.0/)**  
-and this project adheres to **[Semantic Versioning](https://semver.org/spec/v2.0.0.html)**.
+The format is based on **Keep a Changelog**, and this project adheres to **Semantic Versioning**.
+
+> Repo: https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator  
+> License: AGPL-3.0-or-later
 
 ---
 
 ## [Unreleased]
 ### Added
-- BitNet runtime adapter (bitnet.cpp / ONNX EP) — **planned**
-- TinyBERT ONNX guard fine-tuning hooks + policy pack — **planned**
-- DuckDB + FAISS RAG backend with ingest CLI — **planned**
-- Unit tests for scheduler, guard, and agents; GitHub Actions matrix — **planned**
-- Web dashboard (minimal) for DAG traces and moderation cards — **planned**
-
-### Changed
-- YAML → DAG loader to support node-level timeouts, retries, and cost/mem hints — **planned**
-
-### Security
-- Optional HW-backed subkeys (YubiKey/Nitrokey) how-to in SECURITY.md — **planned**
-
----
-
-## [0.1.0] — 2025-09-10
-### Added
-- **Project scaffolding**:
-  - `README.md` with badge deck, quick links, Colab integration, and architecture overview
-  - `docs/` site (Just-the-Docs): quickstart, architecture, safety, API/pipeline schema, roadmap, Colab page
-  - `orchestrator/pipeline.yml` (example) and `requirements.txt`
-  - `notebooks/BitNet_TinyBERT_Orchestrator_Colab.ipynb` (demo DAG with TinyBERT guard + placeholder BitNet agents)
-- **Governance & legal**:
-  - `LICENSE` (**AGPL-3.0-or-later**)
-  - `COMPLIANCE.md` with AGPL §13 network-use guidance (`/source` endpoint, `X-AGPL-Source` header, OCI labels)
-  - `SECURITY.md` with PGP contact, coordinated disclosure, scope, and safe-harbor guidelines
-  - `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1)
-  - `CONTRIBUTING.md` (DCO workflow, conventional commits, SPDX headers)
-  - `THIRD_PARTY_LICENSES.md` template
+- **Chat mode (multi-turn)**:
+  - Colab **Cell 6B — Chat Demo** (Gradio `Chatbot` with rolling transcript).
+  - Local app **`ui/chat_gradio.py`** (multi-turn chat; shows moderation JSON + guard mode).
+  - Sample chat pipeline **`orchestrator/pipeline.chat.yml`** with conversation window/persist flags.
+  - New doc **`docs/chat.md`** (guide, config, troubleshooting).
+- **Compliance**:
+  - **`COMPLIANCE.md`** with copy-paste snippets (HTTP header, `/source` route, UI footers, Docker labels).
+- **Security**:
+  - Maintainer PGP key **`security/pgp/ShiySabiniano.asc`** and updated **SECURITY.md** contact block.
+- **Docs site**:
+  - Navigation update and pages for **Quickstart**, **Colab**, **Architecture**, **API**, **Chat**.
 - **Community**:
-  - Issue templates (bug report, feature request)
-  - Status/Docs/License/CI badges and repo quick links in README
+  - GitHub Discussions setup (categories + templates stubs).
 
 ### Changed
-- README hero block updated with **owner = Shiy Sabiniano**, security & compliance badges, and direct Colab gist link.
+- **README.md** updated with chat links, UI options, and repo layout updates.
+- **docs/architecture.md**: clarified flow + fixed Mermaid diagram; added **Chat mode** sequence.
+- **docs/api.md**: added `conversation` schema (windowing, persistence, redaction).
+- **docs/_config.yml**: added footer with commit link (AGPL §13 hint) and site nav polish.
+- **Notebook**:
+  - Rewrote **Cells 1–6** for clarity and stability; added **guard v0.2** (env knobs, ONNX disable flag).
+  - Web UIs: single-turn (Cell 6) and multi-turn chat (Cell 6B).
+- **Orchestrator core**:
+  - Scheduler: clearer error taxonomy, shallow-merge semantics documented, small retry/backoff tidy.
+  - Agents: deterministic placeholders with compact outputs for reducer.
+
+### Fixed
+- Mermaid parse error in Architecture diagram.
+- Colab `SyntaxError` caused by stray markdown fences inside code cells.
+- Notebook event-loop issues by applying `nest_asyncio` in UI cells.
+- Minor typos in badges/links and repo paths.
 
 ### Security
-- Added **PGP card** details and public key path (`security/pgp/ShiySabiniano.asc`) to facilitate encrypted vulnerability reports.
+- Documented PGP fingerprint and public key location.
+- Reinforced guidance to redact logs and disable telemetry by default.
+
+### Deprecated / Removed
+- None.
+
+### Breaking Changes
+- None.
 
 ---
 
-## How we version
-- **MAJOR**: incompatible API changes to the orchestrator or pipeline schema  
-- **MINOR**: backward-compatible features, new agents, new policies  
-- **PATCH**: backward-compatible bug fixes, docs-only changes
+## [0.1.0] - 2025-09-10
+### Added
+- Initial public skeleton:
+  - **Hybrid DAG orchestrator** (Node/Registry/Scheduler) with per-node **pre/post guard** hooks.
+  - **TinyBERT Guard v0.1** (regex PII + heuristic jailbreak; optional ONNX scoring).
+  - **Demo agents**: `summarizer`, `claimcheck`, `synthesis`.
+  - **Colab notebook** with Cells 1–5 and optional single-turn Web UI (Cell 6).
+  - **Docs**: README, Quickstart outline, Safety, Roadmap.
+  - **Governance**: CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, license headers.
+  - **Issue templates** for bugs and features.
 
 ---
 
-[Unreleased]: https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/releases/tag/v0.1.0
+## Links
+
+- Compare **Unreleased**: https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/compare/v0.1.0...HEAD  
+- Tag **v0.1.0**: https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/releases/tag/v0.1.0
+
+> When you cut a new release, update the links above and replace placeholders with the actual tag/commit.
