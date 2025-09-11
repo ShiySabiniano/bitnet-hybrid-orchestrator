@@ -78,6 +78,8 @@ _Hierarchical + Parallel + Sequential orchestration with **BitNet** as the core 
   <a href="orchestrator/pipeline.yml"><b>🧪 Example pipeline.yml</b></a>
   &nbsp;•&nbsp;
   <a href="CHANGELOG.md"><b>📝 Changelog</b></a>
+  &nbsp;•&nbsp;
+  <a href="https://www.linkedin.com/in/shiy-sabiniano/"><b>🔗 LinkedIn</b></a>
 
 </div>
 
@@ -116,15 +118,15 @@ This repo includes a **Colab demo**, a **YAML→DAG** pipeline config, a **Docs 
 
 ```mermaid
 flowchart TD
-A[User Input] --> G1[ TinyBERT: Input Filter ]
-G1 --> O[Hierarchical Orchestrator • plan DAG]
-O --> P[Parse/Intent]
-P --> C1[Claim Check 1]
-P --> C2[Claim Check 2]
-C1 --> R[Reduce/Synthesis]
-C2 --> R
-R --> G2[ TinyBERT: Output Moderation ]
-G2 --> X[Response]
+  A["User Input"] --> G1["TinyBERT: Input Filter"]
+  G1 --> O["Hierarchical Orchestrator • plan DAG"]
+  O --> P["Parse/Intent"]
+  P --> C1["Claim Check 1"]
+  P --> C2["Claim Check 2"]
+  C1 --> R["Reduce/Synthesis"]
+  C2 --> R
+  R --> G2["TinyBERT: Output Moderation"]
+  G2 --> X["Response"]
 ````
 
 * **Mixed orchestration:** parallel branches for independent checks; sequential where dependencies exist.
@@ -176,7 +178,7 @@ We keep UI deps separate for lean edge installs.
 pip install -r ui/requirements.txt
 ```
 
-**Single-turn UI (local):** copy the Colab **Cell 6** block into `ui/gradio_demo.py`, then:
+**Single-turn UI (local):** use the provided script:
 
 ```bash
 python ui/gradio_demo.py
@@ -205,26 +207,31 @@ python ui/chat_gradio.py
 │  ├─ api.md
 │  ├─ roadmap.md
 │  ├─ colab.md
-│  └─ chat.md                   # NEW: multi-turn chat guide
+│  └─ chat.md                   # Multi-turn chat guide
 │  └─ assets/
 │     ├─ logo.svg
 │     └─ diagram-overview.png
 ├─ orchestrator/
 │  ├─ pipeline.yml              # Example pipeline (YAML→DAG)
-│  ├─ pipeline.chat.yml         # NEW: chat pipeline sample
+│  ├─ pipeline.chat.yml         # Chat pipeline sample
 │  ├─ requirements.txt
 │  └─ cli.py                    # Tiny CLI runner
 ├─ ui/
 │  ├─ requirements.txt          # gradio, nest_asyncio (optional UI deps)
-│  └─ chat_gradio.py            # NEW: local chat app
+│  ├─ gradio_demo.py            # Single-turn local app
+│  └─ chat_gradio.py            # Multi-turn local chat app
 ├─ notebooks/
 │  └─ BitNet_TinyBERT_Orchestrator_Colab.ipynb
-├─ .github/ISSUE_TEMPLATE/
-│  ├─ bug_report.md
-│  └─ feature_request.md
-├─ .github/DISCUSSION_TEMPLATE/ # NEW: category forms (announcements, q-a, ideas, show-and-tell, rfc)
+├─ .github/
+│  ├─ ISSUE_TEMPLATE/
+│  │  ├─ bug_report.md
+│  │  ├─ feature_request.md
+│  │  └─ config.yml
+│  └─ workflows/
+│     └─ ci.yml
 ├─ SECURITY.md • CODE_OF_CONDUCT.md • CONTRIBUTING.md
 ├─ COMPLIANCE.md • THIRD_PARTY_LICENSES.md • CHANGELOG.md
+├─ security/pgp/ShiySabiniano.asc
 ├─ LICENSE
 └─ README.md
 ```
@@ -302,7 +309,7 @@ If you interact with it over a network, you must provide users access to the Cor
 
 ## Owner
 
-**Shiy Sabiniano**
+**Shiy Sabiniano** — [LinkedIn](https://www.linkedin.com/in/shiy-sabiniano/)
 
 ```
 ::contentReference[oaicite:0]{index=0}
