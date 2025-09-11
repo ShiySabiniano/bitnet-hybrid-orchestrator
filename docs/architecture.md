@@ -1,236 +1,299 @@
----
-nav_order: 3
-title: Architecture
----
-
 # Architecture
 
-The **BitNet Hybrid Orchestrator** blends **hierarchical planning**, **parallel fan-out**, and **sequential chains** in one compact runtime.  
-Safety is enforced by a **TinyBERT Guard** at input and output, with optional node-level gates.
+This document explains how the **BitNet Hybrid Orchestrator** is put together: the core runtime (Node/Registry/Scheduler), the **TinyBERT Guard**, placeholder **agents** you can swap for BitNet backends, and the optional **chat mode** that preserves context across turns.
+
+- **Execution model:** hierarchical planning, sequential dependencies, and parallel branches in a single DAG.
+- **Safety:** pre-/post-guard on selected nodes, with PII redaction and moderation cards.
+- **Config-as-data:** pipelines defined in YAML (`orchestrator/pipeline*.yml`).
 
 ---
 
-## High-level view
-
-- **Control plane — Orchestrator**
-  - Builds and executes a **mixed DAG** (directed acyclic graph) from `pipeline.yml`.
-  - Applies **budgets** (latency, memory, concurrency) and **policies** (guard thresholds).
-- **Data plane — Agents**
-  - Small, swappable functions (e.g., `bitnet.summarizer`, `bitnet.claimcheck`, `bitnet.synthesis`).
-  - Plug a real **BitNet** backend later; placeholders run in the demo.
-- **Safety plane — Guard**
-  - **Pre-guard** filters inputs; **post-guard** moderates outputs (PII redaction, toxicity/jailbreak).
-  - Optional **per-node guard** wraps risky stages.
-- **Observability**
-  - Minimal JSON **traces** with redaction; **moderation card** attached to outputs.
-- **Storage & RAG (optional)**
-  - DuckDB + FAISS for small local knowledge bases.
-
----
-
-## Data flow (overview)
+## High-level flow
 
 ```mermaid
 flowchart TD
-    U[User Input / Source] --> G1[Guard: Input Filter]
-    G1 --> O[Orchestrator - Plan DAG]
-    O --> P[Parse / Summarize]
-    P -->|parallel| C1[Claim Check 1]
-    P -->|parallel| C2[Claim Check 2]
-    C1 --> R[Reduce / Synthesis]
-    C2 --> R
-    R --> G2[Guard: Output Moderation]
-    G2 --> X[Response + Moderation Card]
+A[User Input] --> G1[ TinyBERT Guard • input ]
+G1 -->|redacted text| O[Orchestrator (Scheduler)]
+O --> P[Parse/Intent (summarizer)]
+P --> C1[Claim Check 1]
+P --> C2[Claim Check 2]
+C1 --> R[Reduce/Synthesis]
+C2 --> R
+R --> G2[ TinyBERT Guard • output ]
+G2 --> X[Response]
 ````
 
-* **Parallelism** speeds independent checks (`C1`, `C2`), while dependencies remain **sequential**.
-* **Guard** executes **before** orchestration and **after** final synthesis; enable **per-node** gates where risk justifies it.
+* The **Orchestrator** executes a DAG of **Nodes**. Parents feed their outputs into children (shallow merge).
+* The **Guard** may be applied at the **pipeline boundary** (input/output) and/or **per-node** (for risky nodes).
+* The default demo runs `parse → [claim1, claim2] → reduce`.
 
 ---
 
-## Config-as-data (pipeline.yml → runtime)
+## Components
 
-```yaml
-name: summarize_and_verify
-budgets: { latency_ms: 1800, deadline_ms: 4000, max_concurrency: 2, memory_mb: 1200 }
-models:  { reasoner: bitnet-s-1.58b, guard: tinybert-onnx-int8 }
-policies:
-  thresholds: { toxicity_block: 0.50, pii_redact: 0.70, jailbreak_block: 0.60 }
-nodes:
-  - { id: parse,  agent: bitnet.summarizer, guard_pre: true,  guard_post: true }
-  - { id: claim1, agent: bitnet.claimcheck, deps: [parse],    guard_post: true, params: { claim: "..." } }
-  - { id: claim2, agent: bitnet.claimcheck, deps: [parse],    guard_post: true, params: { claim: "..." } }
-  - { id: reduce, agent: bitnet.synthesis,  deps: [claim1, claim2], guard_post: true }
-```
-
-**Mapping**
-
-* `nodes[*].deps` → edges in the DAG.
-* `budgets.max_concurrency` → scheduler semaphore.
-* `policies.thresholds.*` → guard thresholds (block/redact).
-* `io.inputs/outputs` (optional) → explicit data binding between nodes.
-
----
-
-## Orchestrator internals
-
-### Core components
-
-* **`AgentRegistry`** — name → callable adapter
-* **`Scheduler`** — executes nodes when dependencies are satisfied; respects budgets
-* **`Node`** — metadata (deps, guard flags, params, timeouts)
-
-### Execution model
-
-1. Build `id → Node`, `id → deps`.
-2. Start **ready** nodes (no unmet deps), limited by `max_concurrency`.
-3. On completion, **fan-out** results to children; queue next ready nodes.
-4. Apply **pre/post guard** where configured.
-5. Enforce **timeouts** and **retries** (node-level).
-
-### Planner hints
-
-```yaml
-planner:
-  prefer_parallel_for_independent_leaves: true
-  serialize_when_memory_low: true
-  critical_path_bias: true
-  degrade_model_tiers_if_needed: true
-```
-
----
-
-## Agent interface
-
-Agents are small async functions with a stable signature. You can wrap BitNet/ONNX/CPP backends behind them.
+### 1) Node (data model)
 
 ```python
-async def agent_name(text: str, **params) -> dict:
-    """
-    Returns:
-      { "text": "...", ... }  # primary payload under "text"
-    """
+@dataclass
+class Node:
+    id: str
+    agent: str                # registry key, e.g., "bitnet.summarizer"
+    deps: List[str] = []      # upstream node ids
+    guard_pre: bool = True    # run guard on input to this node
+    guard_post: bool = True   # run guard on output of this node
+    timeout_ms: int = 1000
+    max_retries: int = 0
+    params: Dict[str, Any] = {}
 ```
 
-**Examples**
+* **Inputs** to a node are the **shallow merge** of all parent outputs, plus any top-level `sources`.
+* **Params** are merged last and may override keys from inputs when needed.
 
-* `bitnet.summarizer(text, max_sentences=3)`
-* `bitnet.claimcheck(text, claim="...")`
-* `bitnet.synthesis(text, pieces=[...])`
+### 2) Registry (agent lookup)
 
-Keep outputs **JSON-serializable**, deterministic where possible (for tests), and small.
+* A lightweight mapping from name → async function.
+* Contract: `async def agent(**kwargs) -> dict` returning **at least** `{"text": "..."}`.
+* In the demo:
+
+  * `bitnet.summarizer` (extractive, deterministic)
+  * `bitnet.claimcheck` (heuristic overlap + “evidence”)
+  * `bitnet.synthesis` (executive brief reducer)
+
+You can swap these for **BitNet** backends without changing the orchestrator.
+
+### 3) Scheduler (DAG executor)
+
+* Validates dependencies and topologically executes nodes.
+* Runs ready nodes in parallel under a **concurrency semaphore**.
+* Applies:
+
+  * **Pre-guard**: `guard.check(..., mode="input")`
+  * **Post-guard**: `guard.check(..., mode="output")`
+  * **Timeouts**: per-node `timeout_ms`
+  * **Retries**: simple backoff up to `max_retries`
+* Produces `{node_id: result_dict}`, where `result_dict` may contain:
+
+  * `text: str` (primary payload)
+  * `_moderation: list` (per-guard moderation cards)
+  * `_node: str` (node id)
+  * `_error: str` (if execution failed)
+
+### 4) Guard (TinyBERT-style)
+
+* Provides **PII redaction** (email/phone via regex) and **moderation** signals.
+* Modes:
+
+  * `regex-only` (default; jailbreak heuristics + PII regex)
+  * `onnx+regex` (if **TinyBERT ONNX** model + tokenizer are provided)
+* Thresholds (defaults shown in code / YAML):
+
+  * `toxicity_block`, `jailbreak_block`, `pii_redact`
+* Output: **moderation card** (see schema below) that attaches to node results.
 
 ---
 
-## Guard design
+## Execution lifecycle
 
-* **PII redaction** (regex + model): email, phone by default; extend with custom patterns.
-* **Toxicity/Jailbreak**: thresholds decide *allow / redact / block*.
-* **Moderation card** attaches to outputs:
+```mermaid
+sequenceDiagram
+  participant S as Scheduler
+  participant G as Guard
+  participant A as Agents
+
+  Note over S: Topologically sort DAG (deps validated)
+  S->>S: Identify roots (no deps) and enqueue
+  loop Each node (concurrency-limited)
+    S->>G: pre-guard(input)
+    G-->>S: allowed? redacted_text + labels
+    S->>A: agent(**inputs, **params) with timeout
+    A-->>S: result dict
+    S->>G: post-guard(result.text)
+    G-->>S: allowed? redacted_text + labels
+    S->>S: merge result into child inputs
+  end
+  S-->>S: collate results {node_id: result}
+```
+
+**Error handling**
+
+* If a node fails (timeout/exception/guard block), its entry includes `"_error"`.
+* Downstream nodes still receive the partial merge; you can design them to tolerate missing upstreams.
+* The Scheduler raises `dag_unresolved_nodes` if cycles or permanent blocks prevent readiness.
+
+---
+
+## Moderation card (schema)
+
+Attached to results under `"_moderation"`:
 
 ```json
 {
-  "guard_version": "v0.1",
-  "decisions": [
-    {
-      "node": "output",
-      "allowed": true,
-      "labels": {"toxicity": 0.03, "jailbreak": 0.04, "pii": 0.81},
-      "actions": ["redact"],
-      "redactions": [{"span":[18,36],"type":"PII.email"}],
-      "why": "PII redacted; scores below thresholds"
-    }
-  ]
+  "node": "parse:post",
+  "mode": "output",
+  "guard_version": "v0.2",
+  "allowed": true,
+  "text": "possibly redacted text",
+  "labels": {
+    "toxicity": 0.02,
+    "jailbreak": 0.00,
+    "pii": 1.00
+  },
+  "actions": ["redact"],
+  "redactions": [
+    {"span": [14, 31], "type": "PII.email"}
+  ],
+  "why": "ok"
 }
 ```
 
-**Placement**
-
-* Always **pre-guard** user inputs.
-* Always **post-guard** final outputs.
-* Use **per-node guard** for risky tools (code exec, network calls).
+* **Where**: `"node"` indicates which guard hook created the card (`<node_id>:pre` or `:post`).
+* **Actions**: `["redact"]`, `["block"]`, or both.
 
 ---
 
-## Budgets & device profiles
+## Config as data (YAML)
+
+### `orchestrator/pipeline.yml` (single-turn)
 
 ```yaml
-device_profile:
-  mode: auto        # phone | sbc | vps
+version: 0.1.0
+schema: pipeline.v1
+name: summarize_and_verify
+
 budgets:
   latency_ms: 1800
-  deadline_ms: 4000
   max_concurrency: 2
   memory_mb: 1200
+
+models:
+  reasoner: bitnet-s-1.58b
+  guard: tinybert-onnx-int8
+
+policies:
+  thresholds:
+    toxicity_block: 0.5
+    pii_redact: 0.7
+    jailbreak_block: 0.6
+
+nodes:
+  - id: parse
+    agent: bitnet.summarizer
+    guard_pre: true
+    guard_post: true
+    params: { max_sentences: 3 }
+
+  - id: claim1
+    agent: bitnet.claimcheck
+    deps: [parse]
+    params: { claim: "C1" }
+
+  - id: claim2
+    agent: bitnet.claimcheck
+    deps: [parse]
+    params: { claim: "C2" }
+
+  - id: reduce
+    agent: bitnet.synthesis
+    deps: [claim1, claim2]
 ```
 
-* The scheduler enforces **concurrency caps** and may serialize under pressure.
-* The planner biases the **critical path** to improve p50/p95 latency.
-
-**Latency budgeting (example)**
-
-* Parse: 300–500 ms
-* Claim checks (parallel): \~2 × 400–600 ms (critical path uses the slower leaf)
-* Reduce: 200–300 ms
-* Guard overhang: 50–120 ms
-  → Target `latency_ms ≈ 1.8s` on CPU-only edge profile.
-
----
-
-## Observability
-
-* **Traces**: per-node timings, decisions, provenance.
-* **Redaction**: `tracing.redact_pii_in_traces: true`.
-* **Provenance**: reducer includes which leaves fed the output.
+### `orchestrator/pipeline.chat.yml` (chat-mode sample)
 
 ```yaml
-tracing:
-  enabled: true
-  redact_pii_in_traces: true
-  save_provenance: true
+conversation:
+  kind: transcript          # or "none" for single-turn
+  window_messages: 12       # how many (user,assistant) pairs to keep
+  persist: false            # if you add a server, set true to store
+  redact_pii_in_history: true
 ```
 
----
-
-## Failure modes & mitigations
-
-| Failure             | Symptom                  | Mitigation                                                               |
-| ------------------- | ------------------------ | ------------------------------------------------------------------------ |
-| Guard blocks input  | Request rejected         | Safe refusal template; allow user to reframe                             |
-| Guard blocks output | No final response        | `on_error.node.blocked_post: regenerate_safe` (fallback template)        |
-| OOM / slow on edge  | Crashes or large p95     | Lower `max_concurrency`, shorten inputs; enable serialize-under-pressure |
-| Model not found     | Agent fails to load      | Use placeholders; document `models.*_path` overrides                     |
-| RAG misses          | “uncertain” claim checks | Add small KB (DuckDB+FAISS), improve chunking, add aliases/synonyms      |
-| Threshold mismatch  | Over-/under-blocking     | Tune `toxicity_block`, `jailbreak_block`, expand PII patterns            |
+* The UI (Colab/Gradio) concatenates the **rolling transcript** into `sources.text` for the root node.
+* The Guard runs on the full transcript (input) and on the synthesized reply (output).
 
 ---
 
-## Packaging & deployment
+## Chat mode (multi-turn)
 
-* **Colab / Notebook** — fast demo path (no install).
-* **Local** — `pip install -r orchestrator/requirements.txt`.
-* **Edge** — prefer CPU paths first; later, enable ONNX Runtime EPs or native BitNet builds.
+```mermaid
+sequenceDiagram
+  participant U as User
+  participant UI as Chat UI
+  participant S as Scheduler
+  participant G as Guard
+  participant A as Agents
 
-**AGPL §13 Compliance**
+  U->>UI: message_t
+  UI->>UI: transcript = history + message_t
+  UI->>G: pre-guard(transcript)
+  G-->>UI: redacted transcript (or block)
+  UI->>S: run_dag(parse → [claim1,claim2] → reduce)
+  S->>A: summarizer/claimcheck/synthesis
+  A-->>S: results
+  S->>G: post-guard(reducer.text)
+  G-->>S: redacted reply (or block)
+  S-->>UI: final reply + modcards
+  UI-->>U: assistant_t
+  UI->>UI: append (user_t, assistant_t) to history (windowed)
+```
 
-* Expose `/source` endpoint or UI footer with **exact commit**.
-* Add `X-AGPL-Source` header (see `COMPLIANCE.md`).
+**State & windowing**
+
+* History is windowed at **N pairs** (configurable) to bound latency/memory.
+* If `redact_pii_in_history: true`, the **redacted** transcript is the one persisted.
+
+**Safety**
+
+* Guard runs **every turn** on **input** and **output**.
+* If a turn is **blocked**, the UI can surface `why` (`toxicity_block` / `jailbreak_block`) to the user.
+
+See **[docs/chat.md](./chat.md)** for usage and troubleshooting.
 
 ---
 
-## Security notes
+## Swapping in BitNet backends
 
-* Never commit real PII in examples. Use `test@example.com` and reserved numbers.
-* Keep **PII redaction before logging**.
-* See **[SECURITY](../SECURITY.md)** for reporting and the PGP contact.
+Keep agent signatures and route to your runtime:
+
+```python
+async def summarizer(text: str, max_sentences: int = 3, **_) -> dict:
+    # call your BitNet summarizer here
+    return {"text": "..."}
+```
+
+* You can add more nodes (e.g., tools, retrieval) and mark them with `guard_pre/guard_post` as needed.
+* For **RAG**, replace the toy matching in `claimcheck` with DuckDB + FAISS and pass retrieved chunks through the DAG.
 
 ---
 
-## Next
+## Concurrency, timeouts, retries
 
-* Read the **[Quickstart](./quickstart.md)** to run the demo.
-* Tune thresholds in **[Safety](./safety.md)**.
-* Explore the **[Pipeline API](./api.md)** to define your own DAGs.
+* Concurrency is controlled via a **semaphore** (set by `budgets.max_concurrency`).
+* Each node runs under a **timeout**; timeouts raise `TimeoutError` and count as an attempt.
+* **Retries** apply a short incremental backoff and respect the same timeout each attempt.
+
+---
+
+## Observability (lightweight)
+
+* Each node result includes `_node`, optional `_error`, and optional `_moderation`.
+* You can serialize the final `{node_id: result}` map and attach it to reports or logs (be mindful of PII—prefer **redacted** fields).
+
+---
+
+## Security & compliance
+
+* **PII**: guard redacts emails/phones by default. Use dummy PII in examples.
+* **AGPL §13** (if hosted): show a **Source** link to the running commit, include an `X-AGPL-Source` header, and expose `/source`. See **[COMPLIANCE.md](../COMPLIANCE.md)**.
+* **PGP**: maintainer key at `security/pgp/ShiySabiniano.asc`. Reporting workflow in **[SECURITY.md](../SECURITY.md)**.
+
+---
+
+## References
+
+* **Quickstart:** [docs/quickstart.md](./quickstart.md)
+* **Colab Guide:** [docs/colab.md](./colab.md)
+* **Chat Mode:** [docs/chat.md](./chat.md)
+* **Pipeline API:** [docs/api.md](./api.md)
 
 ```
 ::contentReference[oaicite:0]{index=0}
