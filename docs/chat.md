@@ -1,11 +1,27 @@
+---
+title: Chat mode
+nav_order: 6
+description: Multi-turn chat UI that reuses the hybrid pipeline with input/output guard each turn.
+---
+
 # Chat mode (multi-turn)
 
-**Chat mode** lets you talk to the orchestrator over multiple turns. Each new message is appended to a rolling **transcript** (“User:/Assistant:” lines) that feeds the same hybrid pipeline:  
+**Chat mode** lets you converse with the orchestrator over multiple turns. Each new message is appended to a rolling **transcript**:
+
+```
+
+User: ...
+Assistant: ...
+User: <new message>
+
+````
+
+That transcript is fed into the same hybrid DAG:  
 `parse → [claim1, claim2] (parallel) → reduce`, with **TinyBERT Guard** on **input** and **output** every turn.
 
-- Guard can **redact PII** in the transcript before processing.
-- Output is moderated again and may be redacted before display.
-- Works in **Colab** (shareable link) or **locally** with Gradio.
+- Guard can **redact PII** before processing.
+- Output is moderated again prior to display.
+- Works in **Colab** or **locally** with Gradio.
 
 ---
 
@@ -13,21 +29,18 @@
 
 ### A) Google Colab (recommended first run)
 
-1. Run **Cells 1 → 5** from the notebook to load deps, guard, orchestrator, and agents.  
-2. Add the **chat UI** cell (named “Cell 6B — Chat Demo”) after Cell 5 and run it.  
-   - If you used our Colab from the README, scroll to **Cell 6B** and run it.
-3. Click the `*.gradio.live` link and start chatting.
+1. Open the notebook:  
+   <https://colab.research.google.com/gist/ShiySabiniano/a34e01bcfc227cddc55a6634f1823539/bitnet_tinybert_orchestrator_colab.ipynb>
+2. Run **Cells 1 → 5**.
+3. Run **Cell 6B — Chat Demo**. Click the link (`*.gradio.live`) and start chatting.
 
-**What it does**  
-At every turn, the chat UI builds a transcript from the chat history + your new message, then calls the DAG with `sources={"text": transcript}`.
+> The chat UI builds a transcript from history + your new message, then calls the DAG with `sources={"text": transcript}`.
 
----
-
-### B) Local run (Gradio app)
+### B) Local (Gradio app)
 
 Install core + UI deps:
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate   # Windows: .\.venv\Scripts\Activate.ps1
 pip install -r orchestrator/requirements.txt
 pip install -r ui/requirements.txt
 ````
@@ -38,7 +51,7 @@ Launch chat:
 python ui/chat_gradio.py
 ```
 
-Open the printed local URL (and/or a `gradio.live` URL). Type a message; each turn runs the hybrid pipeline and returns the **Executive Brief** as the assistant reply.
+Open the printed local URL (and/or the temporary public link). Type messages; each turn runs the hybrid pipeline with guard on input/output.
 
 ---
 
@@ -58,25 +71,26 @@ This **transcript** becomes the `text` input to the pipeline’s root node (`par
 
 ### Guard (safety)
 
-* **Pre-guard** runs on the transcript (redacts PII; may block if thresholds are exceeded).
+* **Pre-guard** runs on the transcript (redacts PII; can block if thresholds exceeded).
 * **Post-guard** runs on the synthesized reply (may redact or block).
-* If you provide a TinyBERT **ONNX** model + tokenizer, the guard adds learned signals; otherwise heuristics are used for jailbreak cues plus regex PII.
+* Without an ONNX model, guard is **regex-only** (PII + jailbreak heuristics). With ONNX + tokenizer, it upgrades to **onnx+regex**.
 
 Environment knobs:
 
 ```bash
-# Optional: disable ONNX path entirely
-export GUARD_DISABLE_ONNX=1
-# Or provide an ONNX model and tokenizer directory
-export TINYBERT_ONNX_PATH=/path/to/tinybert-int8.onnx
-export TINYBERT_TOKENIZER_DIR=/path/to/tokenizer
+# Optional: provide ONNX model + tokenizer to enable learned signals
+TINYBERT_ONNX_PATH=/abs/path/to/tinybert-int8.onnx
+TINYBERT_TOKENIZER_DIR=/abs/path/to/tokenizer
+
+# Or force regex-only mode
+GUARD_DISABLE_ONNX=1
 ```
 
 ---
 
 ## Configuration
 
-You can keep chat fully UI-driven, or describe it in a pipeline file.
+You can keep chat fully UI-driven, or describe it in YAML.
 
 **`orchestrator/pipeline.chat.yml`**
 
@@ -92,8 +106,8 @@ policies:
 conversation:
   kind: transcript            # transcript | none
   window_messages: 12         # keep last N user/assistant pairs
-  persist: false              # set true if you add a server with storage
-  redact_pii_in_history: true # store only the redacted transcript
+  persist: false              # set true only if you add a server with storage
+  redact_pii_in_history: true # store the redacted transcript
 
 nodes:
   - { id: parse,  agent: bitnet.summarizer, guard_pre: true, guard_post: true, params: { max_sentences: 3 } }
@@ -102,74 +116,47 @@ nodes:
   - { id: reduce, agent: bitnet.synthesis,  deps: [claim1, claim2] }
 ```
 
-* The **UI** uses this policy by default (same thresholds) even if you don’t load the YAML.
-* To enforce a hard window, the UI truncates history to `window_messages`.
+* The **UI** mirrors these thresholds even if you don’t load the YAML.
+* The chat adapter truncates history to `conversation.window_messages`.
 
-See **[docs/api.md](./api.md)** for the full schema.
+See **[Pipeline API](./api.md)** for the full schema.
 
 ---
 
 ## Customizing the chat
 
-* **Claims:** In the UI, edit “Claim 1/2” fields; add more branches by extending the DAG (another `Node` with `deps: ["parse"]`).
-* **Summary length:** Adjust “Summary sentences” (flows into the `summarizer` agent).
-* **Replace agents with BitNet:** Keep function signatures (`async def summarizer(...) -> dict`) and route to your BitNet runtime.
-* **RAG evidence:** Replace dummy lists with DuckDB/FAISS in the `claimcheck` agent.
+* **Claims**: Edit “Claim 1/2” fields in the UI; add more branches by extending the DAG.
+* **Summary length**: Adjust “Summary sentences” (affects the `summarizer` agent).
+* **Swap in BitNet**: Keep function signatures (`async def summarizer(**kwargs) -> dict`), route to your BitNet runtime.
+* **RAG evidence**: Replace the dummy list in `claimcheck` with DuckDB/FAISS retrieval.
 
 ---
 
 ## Troubleshooting
 
-* **NameError: guard/Registry/Node not defined**
-  Run cells **1 → 5** first (the chat UI reuses those globals).
-
-* **“event loop already running”** in Colab
-  We install and call `nest_asyncio.apply()` in the UI cell to allow `run_until_complete`. Re-run the chat cell once after installing.
-
-* **No public link appears**
-  Some environments disable sharing; still open the local URL in the cell output. In Colab, allow pop-ups and re-run.
-
-* **Blocked output**
-  Your reply hit a guard threshold. Lower `toxicity_block`/`jailbreak_block` in config (carefully), or revise the prompt.
-
-* **Performance**
-  This demo is CPU-only and deterministic. Swap the placeholder agents for accelerated BitNet backends when ready.
-
----
-
-## FAQ
-
-**Does chat remember earlier turns?**
-Yes, within the configured **window** (`conversation.window_messages`). The transcript is passed into the pipeline every turn.
-
-**Do you store my conversation?**
-Colab sessions are ephemeral. The local UI keeps state in RAM only. If you build a server, follow the `persist` flag behavior and redact stored history (`redact_pii_in_history: true`).
-
-**Streaming replies?**
-Not in the demo. You can add streaming by emitting partial reducer output and sending incremental updates to the UI.
-
-**Multi-user?**
-The demo UI is single-tenant. For servers, create per-session state keyed by client id and apply your rate limits.
+* **NameError: guard/Registry/Node not defined** → Run cells **1 → 5** first (UI cells reuse those globals).
+* **“event loop already running”** in Colab → We call `nest_asyncio.apply()` in the UI cell; re-run the cell once after install.
+* **No public link appears** → Use the local URL; in Colab, allow pop-ups and re-run.
+* **Blocked output** → Your turn hit a guard threshold. Lower `toxicity_block`/`jailbreak_block` cautiously or revise the prompt.
+* **Performance** → Demo is CPU-only. Attach accelerated BitNet backends when ready.
 
 ---
 
 ## Compliance & Security
 
-If you host the chat over a network (even privately), **AGPL §13** requires exposing the **Corresponding Source** for the running commit. Add a footer link and/or an HTTP header like:
+If you host the chat over a network, **AGPL §13** requires exposing the **Corresponding Source** for the running commit. Use an HTTP header + `/source` endpoint and/or a UI footer link. Copy-paste snippets: **[COMPLIANCE.md](../COMPLIANCE.md)**.
 
-```
-X-AGPL-Source: https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/tree/<COMMIT_SHA>
-```
-
-See **[COMPLIANCE.md](../COMPLIANCE.md)** and **[SECURITY.md](../SECURITY.md)**.
+For vulnerability reporting and PGP details: **[SECURITY.md](../SECURITY.md)**.
 
 ---
 
 ## See also
 
-* **Architecture:** high-level diagrams and execution flow — **[docs/architecture.md](./architecture.md)**
-* **Pipeline schema:** nodes, policies, conversation — **[docs/api.md](./api.md)**
-* **Colab guide:** notebook cells and tips — **[docs/colab.md](./colab.md)**
+* **Quickstart:** [docs/quickstart.md](./quickstart.md)
+* **Colab Guide:** [docs/colab.md](./colab.md)
+* **Architecture:** [docs/architecture.md](./architecture.md)
+* **Pipeline API:** [docs/api.md](./api.md)
+* **Local chat app:** `ui/chat_gradio.py`
 
 ```
 ::contentReference[oaicite:0]{index=0}
