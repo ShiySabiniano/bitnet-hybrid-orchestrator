@@ -1,28 +1,34 @@
-# orchestrator/pipeline.yml
+# orchestrator/pipeline.chat.yml
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Schema: pipeline.v1 — single-turn example (no conversation history)
+# Schema: pipeline.v1 — chat-mode example (conversation transcript window + guard)
 
 version: 0.1.0
 schema: pipeline.v1
-name: summarize_and_verify
+name: chat_orchestrator
 description: >
-  Parse input → verify two claims in parallel → synthesize an executive brief.
-  TinyBERT guard runs on node input/output for redaction & safety.
+  Multi-turn chat: transcript → parse → [claim1, claim2] (parallel) → reduce,
+  with TinyBERT guard on input/output each turn.
 
 budgets:
-  latency_ms: 1800         # soft target per request
-  max_concurrency: 2       # parallel node cap
-  memory_mb: 1200          # informational (not enforced)
+  latency_ms: 2000          # soft target per chat turn
+  max_concurrency: 2        # parallel node cap
+  memory_mb: 1200           # informational (not enforced)
 
 models:
-  reasoner: bitnet-s-1.58b         # label only; map to your backend at runtime
-  guard: tinybert-onnx-int8        # label only; ONNX optional (regex fallback)
+  reasoner: bitnet-s-1.58b  # label only; map to your backend at runtime
+  guard: tinybert-onnx-int8 # label only; ONNX optional (regex fallback)
 
 policies:
   thresholds:
-    toxicity_block: 0.5            # block if predicted toxicity > 0.50
-    pii_redact: 0.7                # redact if PII presence ≥ 0.70
-    jailbreak_block: 0.6           # block if jailbreak score > 0.60
+    toxicity_block: 0.5     # block if predicted toxicity > 0.50
+    pii_redact: 0.7         # redact if PII presence ≥ 0.70
+    jailbreak_block: 0.6    # block if jailbreak score > 0.60
+
+conversation:
+  kind: transcript          # transcript | none
+  window_messages: 12       # keep last N (user,assistant) pairs
+  persist: false            # set true only if you add a server with storage
+  redact_pii_in_history: true
 
 nodes:
   - id: parse
