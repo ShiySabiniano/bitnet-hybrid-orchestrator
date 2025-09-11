@@ -1,369 +1,290 @@
----
-nav_order: 5
-title: Pipeline API (YAML Schema)
----
-
 # Pipeline API
 
-Define hybrid workflows as **config-as-data**. The orchestrator reads a single YAML file and builds a mixed **DAG** (hierarchical plan with sequential and parallel nodes), applies **guards**, and enforces **budgets**.
+This document specifies the **YAML schema** used by the BitNet Hybrid Orchestrator to build and run a mixed DAG (sequential + parallel).  
+Files typically live in `orchestrator/pipeline.yml` (single-turn) and `orchestrator/pipeline.chat.yml` (chat).
 
-This page documents the schema used by `orchestrator/pipeline.yml`.
+- Minimal, human-readable YAML
+- Safe defaults
+- Backward-compatible evolution via `version` and `schema`
 
 ---
 
-## File header
+## Quick example (single-turn)
 
 ```yaml
-version: 0.1.0                 # ← pipeline file version (project-specific)
-schema: pipeline.v1            # ← schema id (for future migrations)
+version: 0.1.0
+schema: pipeline.v1
 name: summarize_and_verify
-description: |
-  Summarize an input, check claims in parallel, then synthesize a brief.
-owners:
-  - Shiy Sabiniano
+
+budgets: { latency_ms: 1800, max_concurrency: 2, memory_mb: 1200 }
+
+models:
+  reasoner: bitnet-s-1.58b
+  guard: tinybert-onnx-int8
+
+policies:
+  thresholds:
+    toxicity_block: 0.5
+    pii_redact: 0.7
+    jailbreak_block: 0.6
+
+nodes:
+  - id: parse
+    agent: bitnet.summarizer
+    guard_pre: true
+    guard_post: true
+    params: { max_sentences: 3 }
+
+  - id: claim1
+    agent: bitnet.claimcheck
+    deps: [parse]
+    params: { claim: "BitNet uses 1.58-bit weights" }
+
+  - id: claim2
+    agent: bitnet.claimcheck
+    deps: [parse]
+    params: { claim: "TinyBERT is effective for classification" }
+
+  - id: reduce
+    agent: bitnet.synthesis
+    deps: [claim1, claim2]
 ````
 
 ---
 
-## Top-level keys
-
-### `device_profile` (optional)
-
-Hints the planner uses to size models and concurrency on edge devices.
+## Quick example (chat mode)
 
 ```yaml
-device_profile:
-  mode: auto        # one of: auto | phone | sbc | vps
-  caps:
-    cpu_threads: auto
-    memory_mb: auto
+version: 0.1.0
+schema: pipeline.v1
+name: chat_orchestrator
+
+budgets: { latency_ms: 2000, max_concurrency: 2, memory_mb: 1200 }
+
+models: { reasoner: bitnet-s-1.58b, guard: tinybert-onnx-int8 }
+
+policies:
+  thresholds: { toxicity_block: 0.5, pii_redact: 0.7, jailbreak_block: 0.6 }
+
+conversation:
+  kind: transcript          # "transcript" (default) or "none"
+  window_messages: 12       # keep last N (user,assistant) pairs
+  persist: false            # if true, store per-session history server-side
+  redact_pii_in_history: true
+
+nodes:
+  - { id: parse,  agent: bitnet.summarizer,  guard_pre: true, guard_post: true, params: { max_sentences: 3 } }
+  - { id: claim1, agent: bitnet.claimcheck, deps: [parse], params: { claim: "BitNet uses 1.58-bit weights" } }
+  - { id: claim2, agent: bitnet.claimcheck, deps: [parse], params: { claim: "TinyBERT is effective for classification" } }
+  - { id: reduce, agent: bitnet.synthesis,  deps: [claim1, claim2] }
 ```
+
+---
+
+## Top-level fields
+
+| Key            | Type         | Required | Default          | Notes                                                      |
+| -------------- | ------------ | -------- | ---------------- | ---------------------------------------------------------- |
+| `version`      | string       | ✅        | —                | Pipeline file version (e.g., `0.1.0`).                     |
+| `schema`       | string       | ✅        | —                | Current schema id: `pipeline.v1`.                          |
+| `name`         | string       | ✅        | —                | Human-friendly name.                                       |
+| `description`  | string       | ❌        | `""`             | Optional description.                                      |
+| `budgets`      | object       | ❌        | see defaults     | Latency, concurrency, memory hints.                        |
+| `models`       | object       | ❌        | `{}`             | Logical labels for reasoner/guard.                         |
+| `policies`     | object       | ❌        | see defaults     | Guard thresholds and other policies.                       |
+| `conversation` | object       | ❌        | `{ kind: none }` | Chat behavior (transcript window, persistence, redaction). |
+| `nodes`        | array\<Node> | ✅        | —                | DAG steps (see **Node**).                                  |
 
 ### `budgets`
 
-Runtime limits enforced by the scheduler.
-
 ```yaml
 budgets:
-  latency_ms: 1800        # soft target
-  deadline_ms: 4000       # hard kill deadline
-  max_concurrency: 2      # upper bound on concurrent nodes
-  memory_mb: 1200         # soft memory budget (advisory)
+  latency_ms: 1800          # soft target per request
+  max_concurrency: 2        # scheduler semaphore
+  memory_mb: 1200           # informational (not enforced)
 ```
 
 ### `models`
 
-Logical model names used by agents and guard. (You can also pin paths.)
+Purely descriptive labels you can map to your runtime:
 
 ```yaml
 models:
   reasoner: bitnet-s-1.58b
   guard: tinybert-onnx-int8
-  embedder: mini-embed-small        # optional, for RAG
-  # reasoner_path: /models/bitnet/bitnet-s-1.58b.onnx
-  # guard_path:    /models/tinybert/tinybert-int8.onnx
 ```
 
-### `storage` (optional)
+### `policies.thresholds`
 
-Built-ins for KV cache and a tiny local RAG setup.
-
-```yaml
-storage:
-  kv_cache:
-    enabled: true
-    max_items: 64
-  rag_index:
-    enabled: false
-    db_path: ./data/rag.duckdb
-    vector_index: ./data/faiss.index
-```
-
-### `policies`
-
-Guard thresholds and output behavior.
+Guard thresholds (mirrored by the notebook demo defaults):
 
 ```yaml
 policies:
   thresholds:
-    toxicity_block: 0.50
-    pii_redact: 0.70
-    jailbreak_block: 0.60
-  redactions:
-    email: true
-    phone: true
-  output:
-    append_moderation_card: true
-    safe_templates:
-      fallback_enabled: true
+    toxicity_block: 0.5
+    pii_redact: 0.7
+    jailbreak_block: 0.6
 ```
 
-### `tracing`
-
-Minimal observability with privacy in mind.
+### `conversation` (chat)
 
 ```yaml
-tracing:
-  enabled: true
-  redact_pii_in_traces: true
-  save_provenance: true
+conversation:
+  kind: transcript          # "transcript" | "none"
+  window_messages: 12       # keep last N (user,assistant) pairs
+  persist: false            # only relevant for server deployments
+  redact_pii_in_history: true
 ```
 
 ---
 
-## Nodes (the DAG)
+## Node schema
 
-Each node declares its **agent**, **dependencies**, guard flags, and parameters.
+Each `nodes[]` entry has:
 
-```yaml
-nodes:
-  - id: parse
-    agent: bitnet.summarizer
-    deps: []                    # no deps → root
-    guard_pre: true             # input filter (TinyBERT)
-    guard_post: true            # output moderation
-    timeout_ms: 900
-    max_retries: 0
-    params:
-      max_sentences: 3
-    io:                         # optional explicit bindings
-      inputs:
-        text: ${source.text}
-      outputs:
-        text: ${result.text}
+| Field         | Type   | Required | Default | Description                                     |
+| ------------- | ------ | -------- | ------- | ----------------------------------------------- |
+| `id`          | string | ✅        | —       | Unique node identifier.                         |
+| `agent`       | string | ✅        | —       | Registry key, e.g., `bitnet.summarizer`.        |
+| `deps`        | array  | ❌        | `[]`    | Upstream node IDs; empty means a **root** node. |
+| `guard_pre`   | bool   | ❌        | `true`  | Run guard on this node’s input.                 |
+| `guard_post`  | bool   | ❌        | `true`  | Run guard on this node’s output text.           |
+| `timeout_ms`  | int    | ❌        | `1000`  | Per-attempt timeout.                            |
+| `max_retries` | int    | ❌        | `0`     | Retries on failure (simple backoff).            |
+| `params`      | object | ❌        | `{}`    | Agent-specific parameters.                      |
 
-  - id: claim1
-    agent: bitnet.claimcheck
-    deps: [parse]
-    guard_pre: false
-    guard_post: true
-    timeout_ms: 600
-    max_retries: 1
-    params:
-      claim: "BitNet uses 1.58-bit weights"
-      kb: []                    # if empty, use default agent KB
-    io:
-      inputs:
-        text: ${nodes.parse.text}
-      outputs:
-        text: ${result.text}
+**Agent contract (Python):**
 
-  - id: claim2
-    agent: bitnet.claimcheck
-    deps: [parse]
-    guard_pre: false
-    guard_post: true
-    timeout_ms: 600
-    max_retries: 1
-    params:
-      claim: "TinyBERT is effective for classification"
-      kb: []
-    io:
-      inputs:
-        text: ${nodes.parse.text}
-      outputs:
-        text: ${result.text}
-
-  - id: reduce
-    agent: bitnet.synthesis
-    deps: [claim1, claim2]      # ← parallel fan-in
-    guard_pre: false
-    guard_post: true
-    timeout_ms: 800
-    max_retries: 0
-    params: {}
-    io:
-      inputs:
-        text: ${nodes.parse.text}
-        pieces:
-          - ${nodes.claim1.text}
-          - ${nodes.claim2.text}
-      outputs:
-        text: ${result.text}
+```python
+# Registered under the key from `agent`
+async def agent(**kwargs) -> dict:
+    # Must return at least {"text": "<primary string payload>"}
+    return {"text": "..."}
 ```
-
-### Node fields (reference)
-
-| Field         | Type      | Default | Notes                                               |
-| ------------- | --------- | ------- | --------------------------------------------------- |
-| `id`          | string    | —       | Unique within file; becomes DAG node id             |
-| `agent`       | string    | —       | Name in `AgentRegistry` (e.g., `bitnet.summarizer`) |
-| `deps`        | string\[] | `[]`    | Parents that must complete before this node runs    |
-| `guard_pre`   | bool      | `true`  | Run TinyBERT guard on input                         |
-| `guard_post`  | bool      | `true`  | Run guard on output (recommended)                   |
-| `timeout_ms`  | int       | `1000`  | Node-level timeout                                  |
-| `max_retries` | int       | `0`     | Retries on failure/timeout                          |
-| `params`      | object    | `{}`    | Freeform kwargs passed to agent                     |
-| `io.inputs`   | object    | —       | Explicit input bindings (see **Bindings**)          |
-| `io.outputs`  | object    | —       | Map agent result → named outputs                    |
 
 ---
 
-## Bindings (data wiring)
+## Data flow & merge semantics
 
-Use **templated references** to pass values between nodes:
+* At runtime, the scheduler **topologically** executes nodes whose `deps` are satisfied.
+* Each child’s input is a **shallow merge** of all parent results plus the top-level `sources` given at run time:
 
-* **Source input:** `${source.text}` — the initial payload provided by the runner.
-* **From another node:** `${nodes.<id>.<field>}` — e.g., `${nodes.parse.text}`.
-* **From current result:** `${result.text}` — the agent’s returned payload.
-
-> The orchestrator injects the agent’s returned dict under `result`. By convention, agents put their main payload under `text`.
+  1. Start with `sources` (e.g., `{"text": user_input}`).
+  2. Merge each parent result dict (later parents overwrite earlier keys if colliding).
+  3. Merge `node.params` last (params override prior keys).
 
 ---
 
-## Planner & error handling (optional)
+## Guard & moderation
 
-```yaml
-planner:
-  prefer_parallel_for_independent_leaves: true
-  serialize_when_memory_low: true
-  critical_path_bias: true
-  degrade_model_tiers_if_needed: true
+The guard is invoked at two points per node when enabled:
 
-on_error:
-  strategy: partial_ok              # partial_ok | abort | best_effort
-  node:
-    blocked_pre: safe_refusal       # pre-guard blocks → return safe refusal
-    blocked_post: regenerate_safe   # post-guard blocks → regenerate using safe template
-  synthesis:
-    missing_inputs: skip_and_label  # reducer notes missing leaves in summary
+1. **Pre-guard** — `guard.check(text, mode="input")`
+
+   * May redact PII; may **block** if thresholds exceeded.
+2. **Post-guard** — `guard.check(text, mode="output")`
+
+   * May redact or block.
+
+When invoked, the guard adds a **moderation card** to the node result under `"_moderation"`.
+
+### Moderation card structure
+
+```json
+{
+  "node": "parse:post",
+  "mode": "output",
+  "guard_version": "v0.2",
+  "allowed": true,
+  "text": "possibly redacted text",
+  "labels": { "toxicity": 0.02, "jailbreak": 0.00, "pii": 1.00 },
+  "actions": ["redact"],
+  "redactions": [ { "span": [14, 31], "type": "PII.email" } ],
+  "why": "ok"
+}
 ```
+
+---
+
+## Result map & reserved keys
+
+The scheduler returns a dict: **`{ node_id: result_dict }`**.
+Each `result_dict` can contain:
+
+| Key           | Type   | Meaning                                                   |
+| ------------- | ------ | --------------------------------------------------------- |
+| `text`        | string | Primary payload for that node.                            |
+| `_node`       | string | Node id that produced the result.                         |
+| `_error`      | string | If execution failed (timeout, exception, or guard block). |
+| `_moderation` | array  | List of moderation cards created by pre/post guards.      |
+| other keys…   | any    | Agent-specific outputs (e.g., `evidence`, `scores`).      |
+
+---
+
+## Environment variables (guard)
+
+These control the TinyBERT-style guard behavior at runtime:
+
+```bash
+# Provide ONNX model + tokenizer directory to enable learned signals.
+TINYBERT_ONNX_PATH=/abs/path/to/tinybert-int8.onnx
+TINYBERT_TOKENIZER_DIR=/abs/path/to/tokenizer
+
+# Force regex-only mode (disable ONNX even if paths exist).
+GUARD_DISABLE_ONNX=1
+```
+
+If unset, the guard runs in **regex-only** mode (PII redaction + jailbreak heuristics).
 
 ---
 
 ## Validation rules
 
-* `nodes[*].id` **must be unique**.
-* The graph formed by `deps` **must be acyclic**.
-* All `deps` must reference existing node ids.
-* Guards: enabling `guard_post: false` on the final node is allowed but **not recommended**.
-* Template references in `io` must resolve to known sources: `source`, `nodes.<id>`, or `result`.
+* `nodes[].id` must be unique.
+* Every dependency in `nodes[].deps` must reference an existing node id.
+* DAG must be acyclic (scheduler errors as `dag_unresolved_nodes` if cycles prevent readiness).
+* Agents referenced by name must be registered in the runtime **Registry**.
 
 ---
 
-## Minimal example
+## Error taxonomy (runtime)
 
-```yaml
-version: 0.1.0
-schema: pipeline.v1
-name: tiny_demo
-budgets: { latency_ms: 1200, max_concurrency: 1, memory_mb: 512 }
-models:  { reasoner: bitnet-s-1.58b, guard: tinybert-onnx-int8 }
-policies:
-  thresholds: { toxicity_block: 0.5, pii_redact: 0.7, jailbreak_block: 0.6 }
-nodes:
-  - { id: parse,  agent: bitnet.summarizer, guard_pre: true, guard_post: true }
-  - { id: reduce, agent: bitnet.synthesis,  deps: [parse], guard_post: true }
-```
+* `timeout:<node_id>:<ms>` — node exceeded its timeout.
+* `node_failed:<node_id>:<ExceptionType>:<message>` — agent error after retries.
+* `blocked_pre|blocked_post:<reason>` — guard decision (e.g., `jailbreak_block`).
+* `dag_unresolved_nodes:[...]` — cyclic deps or permanently blocked parents.
+
+Downstream nodes receive partial merges of parents that did produce results; you can design agents to handle missing inputs.
 
 ---
 
-## Advanced example (with RAG and explicit I/O)
+## Programmatic run (shape)
 
-```yaml
-storage:
-  rag_index:
-    enabled: true
-    db_path: ./data/rag.duckdb
-    vector_index: ./data/faiss.index
-
-nodes:
-  - id: parse
-    agent: bitnet.summarizer
-    deps: []
-    guard_pre: true
-    guard_post: true
-    params: { max_sentences: 4 }
-    io:
-      inputs:  { text: ${source.text} }
-      outputs: { text: ${result.text}, key_phrases: ${result.key_phrases} }
-
-  - id: retrieve
-    agent: tools.retriever
-    deps: [parse]
-    guard_pre: false
-    guard_post: false
-    params:
-      k: 4
-    io:
-      inputs:  { query: ${nodes.parse.key_phrases} }
-      outputs: { chunks: ${result.chunks} }
-
-  - id: verify
-    agent: bitnet.claimcheck
-    deps: [parse, retrieve]
-    guard_post: true
-    params:
-      claim: "BitNet uses 1.58-bit weights"
-    io:
-      inputs:
-        text: ${nodes.parse.text}
-        kb:   ${nodes.retrieve.chunks}
-      outputs:
-        text: ${result.text}
-
-  - id: reduce
-    agent: bitnet.synthesis
-    deps: [verify]
-    guard_post: true
-    io:
-      inputs:
-        text: ${nodes.parse.text}
-        pieces:
-          - ${nodes.verify.text}
-      outputs:
-        text: ${result.text}
-```
-
----
-
-## Agent contract (for implementers)
-
-Agents are simple async callables registered under a **name**:
+**Run inputs** (provided by your app/adapter):
 
 ```python
-async def my_agent(text: str, **params) -> dict:
-    """
-    Return a JSON-serializable dict.
-    The primary payload should be under 'text' for consistency.
-    """
-    return {"text": "...", "extra": {...}}
+sources = {"text": "… user or transcript text …"}
+results = await scheduler.run_dag(nodes, sources)
+final = results.get("reduce", {}).get("text", "")
 ```
 
-* Use **typed dicts / pydantic** if you want schema validation at the boundaries.
-* Keep outputs small and deterministic where possible (simplifies tests).
+**Chat adapter** concatenates the rolling transcript into `sources.text` before calling the DAG.
 
 ---
 
-## Security notes (schema-level)
+## Extending the schema
 
-* Keep `guard_pre: true` on user-facing roots and `guard_post: true` on the last node.
-* Redact PII **before** traces: `tracing.redact_pii_in_traces: true`.
-* If any node calls tools/exec/network, consider setting `guard_pre: true` for that node.
-
----
-
-## Runner input (example)
-
-The pipeline expects the runner to pass a **source** object (e.g., via CLI/SDK):
-
-```json
-{
-  "source": {
-    "text": "Contact me at test@example.com. BitNet b1.58 is efficient..."
-  }
-}
-```
-
-Your runner binds `${source.text}` to the root node’s input when executing.
+* Add new node types by registering agents; **no schema change** is needed.
+* New policy fields should be **optional** with safe defaults.
+* If you add required fields, bump `schema` (e.g., `pipeline.v2`) and keep a compatibility path for v1.
 
 ---
 
-## Tips
+## Compliance & security
 
-* Start with **`max_concurrency: 1–2`** on CPU-only devices.
-* Place heavier work on **parallel leaves**; keep reducers light.
-* Prefer **file-level** changes in YAML over hard-coding logic in agents: easier to test and review.
+* If you host a UI/API, **AGPL §13** requires exposing the running commit’s source. See **[COMPLIANCE.md](../COMPLIANCE.md)** for copy-paste headers, routes, and UI footers.
+* PII handling: the example guard redacts emails/phones by default; extend taxonomy as needed.
+* Security reporting: **[SECURITY.md](../SECURITY.md)** (PGP key + workflow).
 
 ---
 
