@@ -1,128 +1,44 @@
 ---
-name: Bug report
-about: Create a report to help us improve BitNet Hybrid Orchestrator
-title: "[bug] <short summary>"
-labels: bug
-assignees: ""
+name: "🐞 Bug report"
+about: "Report a reproducible problem in BitNet Hybrid Orchestrator"
+title: "Bug: <short summary>"
+labels: ["bug", "triage"]
+assignees: []
 ---
 
 <!--
-⚠️ SECURITY: Do NOT report vulnerabilities here.
-Use GitHub → Security → "Report a vulnerability" or email Troubleshooting@sabiniano.me (PGP in SECURITY.md).
-Sanitize PII before posting (emails, phone numbers, tokens, keys).
+⚠️ If this is a QUESTION or IDEA, please use Discussions instead:
+https://github.com/ShiySabiniano/bitnet-hybrid-orchestrator/discussions
+
+⚠️ If this report involves a SECURITY vulnerability, do NOT open a public issue.
+Please follow SECURITY.md:
+- GitHub: Security → Report a vulnerability
+- PGP: security/pgp/ShiySabiniano.asc
 -->
 
 ## Summary
-A clear and concise description of the problem.
+A clear, concise description of the problem and its impact.
 
 ## Environment
-- **Version / Commit SHA:** `git rev-parse HEAD` =
-- **Install Type:** ☐ Colab ☐ Local
-- **OS / CPU / RAM:** (e.g., Windows 11 / i7 / 16GB)
-- **Python:** `python --version`
-- **onnxruntime:** `python -c "import onnxruntime as ort; print(ort.__version__)"`
-- **transformers:** `python -c "import transformers as t; print(t.__version__)"`
-- **Other relevant packages:** (duckdb, faiss-cpu, etc.)
+- **Repo commit** (paste `git rev-parse HEAD` or link the commit):  
+- **OS**: [Linux/macOS/Windows] (+ version)  
+- **Python**: `python --version`  
+- **Install method**: [pip / venv / conda / Colab]  
+- **Guard mode** (from output): [`regex-only` | `onnx+regex`]  
+- **Orchestrator deps** (`pip freeze | grep -E 'onnxruntime|transformers|huggingface|duckdb|faiss|pydantic|rich|typer'`):  
+- **UI deps** if used (`pip freeze | grep -E 'gradio|nest_asyncio'`):  
 
-## Reproduction Steps
-1. …
-2. …
-3. …
+## Area(s) affected
+- [ ] Orchestrator (Scheduler / DAG / merge semantics)
+- [ ] Guard (TinyBERT / ONNX / regex PII / thresholds)
+- [ ] Agents (summarizer / claimcheck / synthesis)
+- [ ] UI (Gradio single-turn / Chat mode)
+- [ ] Colab notebook
+- [ ] Docs (README / docs/)
+- [ ] Pipeline schema / YAML
+- [ ] CI / Packaging
 
-### Minimal `pipeline.yml` (sanitized)
-> Include only the smallest snippet that reproduces the bug.
-
-```yaml
-version: 0.1.0
-schema: pipeline.v1
-name: repro
-budgets: { latency_ms: 1800, max_concurrency: 2, memory_mb: 1200 }
-policies:
-  thresholds: { toxicity_block: 0.5, pii_redact: 0.7, jailbreak_block: 0.6 }
-nodes:
-  - { id: parse, agent: bitnet.summarizer, guard_pre: true, guard_post: true }
-  # add any other nodes needed to reproduce
-````
-
-### Input sample (sanitized)
-
-```text
-<smallest input that triggers the issue, with PII removed>
-```
-
-## Expected Behavior
-
-What you expected to happen.
-
-## Actual Behavior
-
-What actually happened (include error messages).
-
-### Logs / Trace / Stack
-
-\<copy relevant lines only; redact PII/tokens>
-
-```
-<stack trace or log snippet>
-```
-
-### Moderation Card (if relevant)
-
-> If the guard blocked/redacted unexpectedly, paste the JSON decision for the affected node(s).
-
-```json
-{
-  "node": "output",
-  "allowed": true,
-  "labels": {"toxicity": 0.03, "jailbreak": 0.04, "pii": 0.81},
-  "actions": ["redact"]
-}
-```
-
-### Screenshots (optional)
-
-Attach images or GIFs showing the issue.
-
-## Guard / Policy Settings
-
-* `toxicity_block`: …
-* `pii_redact`: …
-* `jailbreak_block`: …
-* Per-node `guard_pre` / `guard_post`: …
-
-## Device Profile & Budgets
-
-```
-device_profile: { mode: auto }
-budgets: { latency_ms: ..., deadline_ms: ..., max_concurrency: ..., memory_mb: ... }
-```
-
-## Reproducibility
-
-* ☐ Always
-* ☐ Intermittent
-* ☐ Only under load / large inputs
-* Notes:
-
-## Severity
-
-* ☐ P0 – crash / data loss / security bypass
-* ☐ P1 – broken feature / incorrect result
-* ☐ P2 – degraded performance / flaky behavior
-* ☐ P3 – cosmetic / docs
-
-## Workarounds
-
-Any temporary steps that mitigate the issue.
-
-## Additional Context
-
-Links to related issues/PRs, hardware specifics, BitNet backend details, etc.
-
----
-
-**AGPL §13 note (hosted instances):** if this bug occurs in a network-served deployment, please include the `X-AGPL-Source` header value and/or the exact commit link of the running service.
-
-```
-::contentReference[oaicite:0]{index=0}
-```
+## Version / Config context
+- `orchestrator/pipeline.yml` or `orchestrator/pipeline.chat.yml` used (paste or attach minimal relevant excerpt):
+  ```yaml
+  # minimal snippet here (redact secrets/PII)
